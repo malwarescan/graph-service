@@ -1,14 +1,16 @@
 /* jshint node: true, esversion: 11 */
 
-// server.js (CommonJS) — Truth Hose (prod-ready, no diagnostics)
+// server.js (CommonJS) — Truth Hose (prod-ready, minimal diagnostics behind flag)
 const express = require("express");
 const crypto = require("crypto");
+const db = require("./db"); // Database helper for diagnostics
 
 const app = express();
 const PORT = process.env.PORT || 8080;
 
 // ===== Config =====
 const HMAC_SECRET = process.env.PUBLISH_HMAC_KEY || "dev-secret";
+const ENABLE_DIAG = String(process.env.ENABLE_DIAG || "") === "1"; // toggle diagnostics
 
 // ===== In-memory stores (replace with Postgres later) =====
 global.__CROUTONS = global.__CROUTONS || [];
@@ -25,22 +27,22 @@ function verifyHmacHeader(req, body) {
   if (!header || header.indexOf("sha256=") !== 0) return false;
   const gotHex = header.slice("sha256=".length);
 
-  // Compare against exact body and one newline variant (robust to \n mismatches)
+  // Compare against exact body and newline variant
   const exact = hmacHex(body);
-  const alt   = body.endsWith("\n") ? hmacHex(body.slice(0, -1)) : hmacHex(body + "\n");
+  const alt = body.endsWith("\n") ? hmacHex(body.slice(0, -1)) : hmacHex(body + "\n");
 
   try {
-    const got  = Buffer.from(gotHex, "hex");
-    const exp  = Buffer.from(exact,  "hex");
-    const altB = Buffer.from(alt,    "hex");
+    const got = Buffer.from(gotHex, "hex");
+    const exp = Buffer.from(exact, "hex");
+    const altB = Buffer.from(alt, "hex");
     return (got.length === exp.length && crypto.timingSafeEqual(got, exp)) ||
            (got.length === altB.length && crypto.timingSafeEqual(got, altB));
-  } catch (e) {
+  } catch {
     return false;
   }
 }
 
-// Build derived feeds from __CROUTONS
+// ===== Feed builders =====
 function rebuildFeeds() {
   const croutons = global.__CROUTONS || [];
 
@@ -52,11 +54,13 @@ function rebuildFeeds() {
     if (!corporaMap.has(cid)) corporaMap.set(cid, []);
     corporaMap.get(cid).push(c);
   }
-  global.__CORPORA = Array.from(corporaMap.entries()).map(function (entry) {
-    return { corpus_id: entry[0], croutons: entry[1] };
-  });
 
-  // Simple triples graph from croutons with { triple:{subject,predicate,object} }
+  global.__CORPORA = Array.from(corporaMap.entries()).map(([corpus_id, list]) => ({
+    corpus_id,
+    croutons: list
+  }));
+
+  // Triples graph
   const triples = [];
   let t = 0;
   for (let j = 0; j < croutons.length; j++) {
@@ -71,14 +75,12 @@ function rebuildFeeds() {
       });
     }
   }
+
   global.__GRAPH = triples;
 }
 
 // ===== Middleware =====
-// Only let /import accept raw text (NDJSON). 5 MB cap is plenty for batches.
 const ndjsonBody = express.text({ type: "*/*", limit: "5mb" });
-
-// Minimal hardening headers
 app.disable("x-powered-by");
 
 // ===== Health =====
@@ -95,7 +97,6 @@ app.post("/import", ndjsonBody, function (req, res) {
     return res.status(401).json({ error: "invalid signature" });
   }
 
-  // Split NDJSON
   const lines = raw.split("\n").filter(Boolean);
   if (lines.length === 0) return res.status(400).json({ error: "no lines" });
 
@@ -111,25 +112,22 @@ app.post("/import", ndjsonBody, function (req, res) {
     try {
       const obj = JSON.parse(line);
       batch.push(obj);
-    } catch (e) {
+    } catch {
       return res.status(400).json({ error: "invalid JSON line: " + line.slice(0, 120) + "..." });
     }
   }
 
-  // TODO: add idempotency/dedupe on source_hash here
   Array.prototype.push.apply(global.__CROUTONS, batch);
   rebuildFeeds();
 
   return res.json({ accepted: batch.length });
 });
 
-// ===== Feeds (ETag + nocache aware) =====
+// ===== Feeds =====
 function setNdjsonHeaders(res, noCache, body) {
-  // Compute an ETag hash for conditional GETs
   const etag = crypto.createHash("sha256").update(body).digest("hex");
   res.setHeader("ETag", etag);
   res.setHeader("Content-Type", "application/x-ndjson; charset=utf-8");
-
   if (noCache) {
     res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0");
   } else {
@@ -141,26 +139,22 @@ function setNdjsonHeaders(res, noCache, body) {
 // /feeds/croutons.ndjson
 app.get("/feeds/croutons.ndjson", function (req, res) {
   const noCache = String(req.query.nocache || "") === "1";
-  const rows = (global.__CROUTONS || []).map(function (o) { return JSON.stringify(o); });
+  const rows = (global.__CROUTONS || []).map(o => JSON.stringify(o));
   const body = rows.join("\n") + "\n";
 
   const etag = setNdjsonHeaders(res, noCache, body);
-  if (req.headers["if-none-match"] === etag && !noCache) {
-    return res.status(304).end();
-  }
+  if (req.headers["if-none-match"] === etag && !noCache) return res.status(304).end();
   res.send(body);
 });
 
 // /feeds/corpora.ndjson
 app.get("/feeds/corpora.ndjson", function (req, res) {
   const noCache = String(req.query.nocache || "") === "1";
-  const rows = (global.__CORPORA || []).map(function (o) { return JSON.stringify(o); });
+  const rows = (global.__CORPORA || []).map(o => JSON.stringify(o));
   const body = rows.join("\n") + "\n";
 
   const etag = setNdjsonHeaders(res, noCache, body);
-  if (req.headers["if-none-match"] === etag && !noCache) {
-    return res.status(304).end();
-  }
+  if (req.headers["if-none-match"] === etag && !noCache) return res.status(304).end();
   res.send(body);
 });
 
@@ -177,16 +171,38 @@ app.get("/feeds/graph.json", function (req, res) {
   res.setHeader("ETag", etag);
   res.setHeader("Content-Type", "application/json; charset=utf-8");
 
-  // Avoid JSHint W014 by not splitting ternary across lines
-  var cacheControl = "public, max-age=300, stale-while-revalidate=60";
-  if (noCache) cacheControl = "no-store, no-cache, must-revalidate, max-age=0";
+  // FIXED ternary line — no JSHint W014 warning
+  const cacheControl = noCache ? "no-store, no-cache, must-revalidate, max-age=0" : "public, max-age=300, stale-while-revalidate=60";
   res.setHeader("Cache-Control", cacheControl);
 
-  if (req.headers["if-none-match"] === etag && !noCache) {
-    return res.status(304).end();
-  }
+  if (req.headers["if-none-match"] === etag && !noCache) return res.status(304).end();
   res.send(body);
 });
+
+// ===== Diagnostics (optional; gated by ENABLE_DIAG=1) =====
+if (ENABLE_DIAG) {
+  app.get("/diag/schema", async function (_req, res) {
+    try {
+      const tables = await db.query(`
+        SELECT table_name
+        FROM information_schema.tables
+        WHERE table_schema = 'public'
+        ORDER BY table_name;
+      `);
+
+      const columns = await db.query(`
+        SELECT table_name, column_name, data_type
+        FROM information_schema.columns
+        WHERE table_schema = 'public'
+        ORDER BY table_name, ordinal_position;
+      `);
+
+      res.json({ tables: tables.rows, columns: columns.rows });
+    } catch (e) {
+      res.status(500).json({ error: "schema_list_failed", detail: String(e.message || e) });
+    }
+  });
+}
 
 // ===== Boot =====
 app.listen(PORT, function () {
