@@ -1,17 +1,15 @@
 {
   "name": "graph-service",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node server.js"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
   "type": "commonjs",
+  "main": "server.js",
+  "scripts": {
+    "start": "node migrate.js && node server.js",
+    "migrate": "node migrate.js"
+  },
   "dependencies": {
-    "express": "^5.1.0"
+    "express": "^5.1.0",
+    "pg": "^8.12.0",
+    "pg-format": "^1.0.4"
   }
 }
