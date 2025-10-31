@@ -1,20 +1,15 @@
 {
   "name": "graph-service",
   "version": "1.0.0",
-  "description": "Croutons Truth Hose (Graph Service)",
-  "license": "MIT",
-  "type": "commonjs",
+  "description": "Croutons Graph Service",
   "main": "server.js",
-  "engines": {
-    "node": ">=18"
-  },
+  "type": "commonjs",
   "scripts": {
-    "start": "node server.js",
-    "start:prod": "node migrate.js && node server.js",
-    "migrate": "node migrate.js"
+    "prestart": "node migrate.js",
+    "start": "node server.js"
   },
   "dependencies": {
     "express": "^5.1.0",
-    "pg": "^8.16.3"
+    "pg": "^8.12.0"
   }
 }
