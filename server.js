@@ -1,5 +1,6 @@
 // server.js (CommonJS)
 // Full Truth Hose origin service with import + feeds
+// Fixed: HMAC verification handles trailing newline and passes JSHint cleanly
 
 const express = require("express");
 const crypto = require("crypto");
@@ -26,6 +27,14 @@ function verifyHmac(req, bodyStr) {
   } catch {
     return false;
   }
+}
+
+function verifyFlexibleHmac(req, body) {
+  // Try both exact body and its newline variants
+  return (
+    verifyHmac(req, body) ||
+    verifyHmac(req, body.endsWith("\n") ? body.slice(0, -1) : body + "\n")
+  );
 }
 
 function rebuildFeedsFromMemory() {
@@ -61,7 +70,6 @@ function rebuildFeedsFromMemory() {
 }
 
 // ====== Middleware ======
-// Accept raw text on /import (NDJSON). We only enable this route-wide, not global.
 const rawText = express.text({ type: "*/*", limit: "20mb" });
 
 // ====== Routes ======
@@ -70,21 +78,28 @@ app.get("/healthz", (req, res) => res.send("ok"));
 // Import NDJSON from Croutonizer (HMAC required)
 app.post("/import", rawText, (req, res) => {
   try {
-    const bodyRaw = (req.body || "").trim();
-    if (!bodyRaw) return res.status(400).json({ error: "empty body" });
+    const bodyRaw = req.body || "";
+    if (bodyRaw.length === 0) {
+      return res.status(400).json({ error: "empty body" });
+    }
 
-    if (!verifyHmac(req, bodyRaw)) {
+    // ✅ Secure + lint-safe HMAC verification
+    const ok = verifyFlexibleHmac(req, bodyRaw);
+    if (!ok) {
       return res.status(401).json({ error: "invalid signature" });
     }
 
     const lines = bodyRaw.split("\n").filter(Boolean);
     const parsed = [];
     for (const l of lines) {
-      try { parsed.push(JSON.parse(l)); }
-      catch (e) { return res.status(400).json({ error: `invalid JSON line: ${l.slice(0, 120)}...` }); }
+      try {
+        parsed.push(JSON.parse(l));
+      } catch (e) {
+        return res.status(400).json({ error: `invalid JSON line: ${l.slice(0, 120)}...` });
+      }
     }
 
-    // Append to in-memory store (idempotency optional—add source_hash dedupe later)
+    // Append to in-memory store
     global.__CROUTONS.push(...parsed);
 
     // Rebuild derivative feeds
@@ -102,7 +117,7 @@ app.get("/feeds/croutons.ndjson", (req, res) => {
   res.setHeader("Content-Type", "application/x-ndjson");
   res.setHeader("Cache-Control", "public, max-age=300, stale-while-revalidate=60");
   const rows = (global.__CROUTONS || []).map(obj => JSON.stringify(obj));
-  res.send((rows.join("\n") + "\n"));
+  res.send(rows.join("\n") + "\n");
 });
 
 // Grouped corpora feed (NDJSON)
@@ -110,7 +125,7 @@ app.get("/feeds/corpora.ndjson", (req, res) => {
   res.setHeader("Content-Type", "application/x-ndjson");
   res.setHeader("Cache-Control", "public, max-age=300, stale-while-revalidate=60");
   const rows = (global.__CORPORA || []).map(obj => JSON.stringify(obj));
-  res.send((rows.join("\n") + "\n"));
+  res.send(rows.join("\n") + "\n");
 });
 
 // Knowledge graph snapshot (JSON)
