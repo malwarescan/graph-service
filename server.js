@@ -1,260 +1,267 @@
 /* jshint node: true, esversion: 11 */
+"use strict";
 
-// server.js — Truth Hose (DB-backed)
+// server.js — Graph Service (DB-backed Truth Hose + Feeds + Diag)
 const express = require("express");
 const crypto = require("crypto");
 const { Pool } = require("pg");
 
-const app = express();
-const PORT = process.env.PORT || 8080;
-
 // ===== Config =====
+const PORT = process.env.PORT || 8080;
 const HMAC_SECRET = process.env.PUBLISH_HMAC_KEY || "dev-secret";
-const DATABASE_URL = process.env.DATABASE_URL;
+const DATABASE_URL = process.env.DATABASE_URL || "";
 
-// ===== DB =====
-if (!DATABASE_URL) {
-  // Fail fast if not configured (it is set in Railway)
-  console.error("Missing DATABASE_URL");
-  process.exit(1);
-}
-const pool = new Pool({ connectionString: DATABASE_URL });
+// PG pool (Railway Postgres usually needs SSL)
+const pool = new Pool({
+  connectionString: DATABASE_URL,
+  ssl: DATABASE_URL && !DATABASE_URL.includes("localhost") ? { rejectUnauthorized: false } : false
+});
 
-// ===== Helpers =====
+// ===== App =====
+const app = express();
+app.disable("x-powered-by");
+
+// Only let /import accept raw text (NDJSON). 5 MB cap is plenty for batches.
+const ndjsonBody = express.text({ type: "*/*", limit: "5mb" });
+
+// ===== Helpers (HMAC & hashing) =====
 function hmacHex(body) {
   return crypto.createHmac("sha256", HMAC_SECRET).update(body).digest("hex");
 }
 
+// Accept exact body and single newline variant to avoid signing \n mismatches
 function verifyHmacHeader(req, body) {
   const header = req.get("X-Signature") || req.get("x-signature") || "";
   if (!header || header.indexOf("sha256=") !== 0) return false;
   const gotHex = header.slice("sha256=".length);
 
-  // Compare against exact body and one newline variant (robust to \n mismatches)
   const exact = hmacHex(body);
-  const alt   = body.endsWith("\n") ? hmacHex(body.slice(0, -1)) : hmacHex(body + "\n");
+  const alt = body.endsWith("\n") ? hmacHex(body.slice(0, -1)) : hmacHex(body + "\n");
 
   try {
-    const got  = Buffer.from(gotHex, "hex");
-    const exp  = Buffer.from(exact,  "hex");
-    const altB = Buffer.from(alt,    "hex");
-    var eqExact = (got.length === exp.length) && crypto.timingSafeEqual(got, exp);
-    var eqAlt   = (got.length === altB.length) && crypto.timingSafeEqual(got, altB);
-    return eqExact || eqAlt;
-  } catch (e) {
+    const got = Buffer.from(gotHex, "hex");
+    const exp = Buffer.from(exact, "hex");
+    const altB = Buffer.from(alt, "hex");
+    const matchExact = got.length === exp.length && crypto.timingSafeEqual(got, exp);
+    const matchAlt = got.length === altB.length && crypto.timingSafeEqual(got, altB);
+    return matchExact || matchAlt;
+  } catch (_e) {
     return false;
   }
 }
 
-function setNdjsonHeaders(res, noCache, etagSource) {
-  // Compute an ETag for conditional GETs
-  var etag = crypto.createHash("sha256").update(etagSource).digest("hex");
-  res.setHeader("ETag", etag);
-  res.setHeader("Content-Type", "application/x-ndjson; charset=utf-8");
-  if (noCache) {
-    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0");
-  } else {
-    res.setHeader("Cache-Control", "public, max-age=300, stale-while-revalidate=60");
-  }
-  return etag;
+// Deterministic content hash (used for idempotency & ON CONFLICT)
+function computeSourceHash(obj) {
+  // Hash over stable fields likely to represent the same atomic fact
+  const payload = JSON.stringify({
+    source_url: obj.source_url || "",
+    text: obj.text || "",
+    triple: obj.triple || null,
+    corpus_id: obj.corpus_id || null,
+    verified_at: obj.verified_at || null
+  });
+  return crypto.createHash("sha256").update(payload).digest("hex");
 }
-
-// ===== Middleware =====
-const ndjsonBody = express.text({ type: "*/*", limit: "5mb" });
-app.disable("x-powered-by");
 
 // ===== Health =====
 app.get("/healthz", function (_req, res) {
   res.send("ok");
 });
 
-// ===== Import (NDJSON -> DB, HMAC required) =====
+// ===== Import (NDJSON, HMAC, DB-backed) =====
 app.post("/import", ndjsonBody, async function (req, res) {
-  var raw = req.body || "";
+  const raw = req.body || "";
   if (!raw) return res.status(400).json({ error: "empty body" });
   if (!verifyHmacHeader(req, raw)) return res.status(401).json({ error: "invalid signature" });
 
-  var lines = raw.split("\n").filter(Boolean);
+  const lines = raw.split("\n").filter(Boolean);
   if (lines.length === 0) return res.status(400).json({ error: "no lines" });
 
-  var MAX_LINE_BYTES = 100000; // 100 KB per line
-  var client;
+  const MAX_LINE_BYTES = 100000; // 100 KB per line
+  const batch = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (line.length > MAX_LINE_BYTES) return res.status(413).json({ error: "line too large" });
+
+    let obj;
+    try {
+      obj = JSON.parse(line);
+    } catch (_e) {
+      return res.status(400).json({ error: "invalid JSON line: " + line.slice(0, 120) + "..." });
+    }
+
+    // Required minimal fields for persistence
+    if (!obj.source_url || !obj.text) {
+      return res.status(400).json({ error: "source_url and text are required" });
+    }
+
+    obj.source_hash = computeSourceHash(obj);
+    batch.push(obj);
+  }
+
+  const client = await pool.connect();
   try {
-    client = await pool.connect();
-    await client.query("BEGIN");
+    let accepted = 0;
+    let skipped = 0;
 
-    var accepted = 0;
+    // Insert each row; skip duplicates on source_hash
+    for (let i = 0; i < batch.length; i++) {
+      const c = batch[i];
 
-    for (var i = 0; i < lines.length; i++) {
-      var line = lines[i];
-      if (line.length > MAX_LINE_BYTES) {
-        await client.query("ROLLBACK");
-        return res.status(413).json({ error: "line too large" });
+      const q = `
+        INSERT INTO croutons
+          (id, crouton_id, source_url, source_hash, corpus_id, triple, text, confidence, verified_at, created_at, context_hash, contextually_verified, verification_meta)
+        VALUES
+          (gen_random_uuid(), $1, $2, $3, $4, $5::jsonb, $6, $7, $8, NOW(), $9, $10, $11::jsonb)
+        ON CONFLICT (source_hash)
+        DO NOTHING
+        RETURNING id
+      `;
+      const vals = [
+        c.crouton_id || null,
+        c.source_url,
+        c.source_hash,
+        c.corpus_id || null,
+        c.triple ? JSON.stringify(c.triple) : null,
+        c.text,
+        c.confidence != null ? Number(c.confidence) : null,
+        c.verified_at ? new Date(c.verified_at) : null,
+        c.context_hash || null,
+        c.contextually_verified != null ? !!c.contextually_verified : null,
+        c.verification_meta ? JSON.stringify(c.verification_meta) : null
+      ];
+
+      const r = await client.query(q, vals);
+      if (r.rowCount > 0) {
+        accepted += 1;
+      } else {
+        skipped += 1;
       }
-
-      var obj;
-      try {
-        obj = JSON.parse(line);
-      } catch (e) {
-        await client.query("ROLLBACK");
-        return res.status(400).json({ error: "invalid JSON line: " + line.slice(0, 120) + "..." });
-      }
-
-      // Normalize fields that exist in schema
-      var croutonId = obj.crouton_id || null;
-      var sourceUrl = obj.source_url || null;
-      var sourceHash = obj.source_hash || null;
-      var corpusId = obj.corpus_id || null;
-      var text = obj.text || null;
-      var confidence = (typeof obj.confidence === "number") ? obj.confidence : null;
-      var verifiedAt = obj.verified_at ? new Date(obj.verified_at) : null;
-      var contextHash = obj.context_hash || null;
-      var contextuallyVerified = (typeof obj.contextually_verified === "boolean") ? obj.contextually_verified : null;
-      var verificationMeta = obj.verification_meta || null;
-      var triple = obj.triple || null;
-
-      // Insert crouton
-      await client.query(
-        "INSERT INTO croutons " +
-        "(crouton_id, source_url, source_hash, corpus_id, triple, text, confidence, verified_at, context_hash, contextually_verified, verification_meta) " +
-        "VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)",
-        [
-          croutonId,
-          sourceUrl,
-          sourceHash,
-          corpusId,
-          triple, // jsonb
-          text,
-          confidence,
-          verifiedAt,
-          contextHash,
-          contextuallyVerified,
-          verificationMeta
-        ]
-      );
-
-      // If triple present, add to triples table for graph feed
-      if (triple && triple.subject && triple.predicate && triple.object) {
-        await client.query(
-          "INSERT INTO triples (subject, predicate, object, evidence_crouton_id) VALUES ($1,$2,$3,$4)",
-          [triple.subject, triple.predicate, triple.object, croutonId]
-        );
-      }
-
-      accepted += 1;
     }
 
-    await client.query("COMMIT");
-    return res.json({ accepted: accepted });
+    res.json({ accepted, skipped, total: batch.length });
   } catch (err) {
-    if (client) {
-      try { await client.query("ROLLBACK"); } catch (e) {}
-    }
     console.error("Import failed:", err);
-    return res.status(500).json({ error: "import_failed" });
+    res.status(500).json({ error: "import_failed" });
   } finally {
-    if (client) client.release();
+    client.release();
   }
 });
 
 // ===== Feeds (DB-backed) =====
+function setNdjsonHeaders(res, noCache, body) {
+  const etag = crypto.createHash("sha256").update(body).digest("hex");
+  res.setHeader("ETag", etag);
+  res.setHeader("Content-Type", "application/x-ndjson; charset=utf-8");
+  const cacheControl = noCache ? "no-store, no-cache, must-revalidate, max-age=0" : "public, max-age=300, stale-while-revalidate=60";
+  res.setHeader("Cache-Control", cacheControl);
+  return etag;
+}
 
 // /feeds/croutons.ndjson
 app.get("/feeds/croutons.ndjson", async function (req, res) {
-  var noCache = String(req.query.nocache || "") === "1";
-  var client;
+  const noCache = String(req.query.nocache || "") === "1";
   try {
-    client = await pool.connect();
-    // Stream in memory for simplicity; data volumes are small initially
-    var rows = await client.query(
-      "SELECT crouton_id, source_url, source_hash, corpus_id, triple, text, confidence, verified_at, context_hash, contextually_verified, verification_meta " +
-      "FROM croutons ORDER BY created_at ASC"
-    );
-    var out = "";
-    for (var i = 0; i < rows.rows.length; i++) {
-      out += JSON.stringify(rows.rows[i]) + "\n";
-    }
-    var etag = setNdjsonHeaders(res, noCache, out);
+    const q = `
+      SELECT crouton_id, source_url, source_hash, corpus_id, triple, text, confidence, verified_at, context_hash, contextually_verified, verification_meta
+      FROM croutons
+      ORDER BY created_at ASC
+    `;
+    const r = await pool.query(q);
+    const rows = r.rows.map(function (row) {
+      return JSON.stringify({
+        crouton_id: row.crouton_id || null,
+        source_url: row.source_url || null,
+        source_hash: row.source_hash || null,
+        corpus_id: row.corpus_id || null,
+        triple: row.triple || null,
+        text: row.text || null,
+        confidence: row.confidence != null ? Number(row.confidence) : null,
+        verified_at: row.verified_at ? new Date(row.verified_at).toISOString() : null,
+        context_hash: row.context_hash || null,
+        contextually_verified: row.contextually_verified != null ? !!row.contextually_verified : null,
+        verification_meta: row.verification_meta || null
+      });
+    });
+
+    const body = rows.join("\n") + "\n";
+    const etag = setNdjsonHeaders(res, noCache, body);
     if (req.headers["if-none-match"] === etag && !noCache) {
       return res.status(304).end();
     }
-    res.send(out || "\n");
+    res.send(body);
   } catch (err) {
-    console.error("croutons.ndjson error:", err);
+    console.error("Feed croutons error:", err);
     res.status(500).json({ error: "feed_failed" });
-  } finally {
-    if (client) client.release();
   }
 });
 
-// /feeds/corpora.ndjson (group by corpus_id)
+// /feeds/corpora.ndjson
 app.get("/feeds/corpora.ndjson", async function (req, res) {
-  var noCache = String(req.query.nocache || "") === "1";
-  var client;
+  const noCache = String(req.query.nocache || "") === "1";
   try {
-    client = await pool.connect();
-    var rows = await client.query(
-      "SELECT corpus_id, json_agg(json_build_object(" +
-        "'crouton_id', crouton_id," +
-        "'source_url', source_url," +
-        "'source_hash', source_hash," +
-        "'triple', triple," +
-        "'text', text," +
-        "'confidence', confidence," +
-        "'verified_at', verified_at," +
-        "'context_hash', context_hash," +
-        "'contextually_verified', contextually_verified," +
-        "'verification_meta', verification_meta" +
-      ")) AS croutons " +
-      "FROM croutons " +
-      "GROUP BY corpus_id " +
-      "ORDER BY corpus_id NULLS LAST"
-    );
+    const q = `
+      SELECT crouton_id, source_url, source_hash, corpus_id, triple, text, confidence, verified_at, context_hash, contextually_verified, verification_meta
+      FROM croutons
+      ORDER BY created_at ASC
+    `;
+    const r = await pool.query(q);
 
-    var out = "";
-    for (var i = 0; i < rows.rows.length; i++) {
-      // Each line: { corpus_id, croutons: [...] }
-      var line = {
-        corpus_id: rows.rows[i].corpus_id || "default",
-        croutons: rows.rows[i].croutons || []
-      };
-      out += JSON.stringify(line) + "\n";
+    // Group by corpus_id (default to "default")
+    const map = new Map();
+    for (let i = 0; i < r.rows.length; i++) {
+      const row = r.rows[i];
+      const cid = row.corpus_id || "default";
+      if (!map.has(cid)) map.set(cid, []);
+      map.get(cid).push(row);
     }
 
-    var etag = setNdjsonHeaders(res, noCache, out);
+    const lines = [];
+    map.forEach(function (list, corpus_id) {
+      lines.push(JSON.stringify({ corpus_id: corpus_id, croutons: list }));
+    });
+
+    const body = lines.join("\n") + "\n";
+    const etag = setNdjsonHeaders(res, noCache, body);
     if (req.headers["if-none-match"] === etag && !noCache) {
       return res.status(304).end();
     }
-    res.send(out || "\n");
+    res.send(body);
   } catch (err) {
-    console.error("corpora.ndjson error:", err);
+    console.error("Feed corpora error:", err);
     res.status(500).json({ error: "feed_failed" });
-  } finally {
-    if (client) client.release();
   }
 });
 
-// /feeds/graph.json (triples snapshot)
+// /feeds/graph.json
 app.get("/feeds/graph.json", async function (req, res) {
-  var noCache = String(req.query.nocache || "") === "1";
-  var client;
+  const noCache = String(req.query.nocache || "") === "1";
   try {
-    client = await pool.connect();
-    var rows = await client.query(
-      "SELECT subject, predicate, object, evidence_crouton_id FROM triples ORDER BY created_at ASC"
-    );
+    const r = await pool.query(`
+      SELECT subject, predicate, object, evidence_crouton_id, created_at
+      FROM triples
+      ORDER BY created_at ASC
+    `);
 
-    var payload = {
+    const payload = {
       generated_at: new Date().toISOString(),
-      triples: rows.rows || []
+      triples: r.rows.map(function (t, i) {
+        return {
+          triple_id: "trp_" + i,
+          subject: t.subject,
+          predicate: t.predicate,
+          object: t.object,
+          evidence: t.evidence_crouton_id ? [t.evidence_crouton_id] : []
+        };
+      })
     };
-    var body = JSON.stringify(payload, null, 2);
 
-    var etag = crypto.createHash("sha256").update(body).digest("hex");
+    const body = JSON.stringify(payload, null, 2);
+    const etag = crypto.createHash("sha256").update(body).digest("hex");
     res.setHeader("ETag", etag);
     res.setHeader("Content-Type", "application/json; charset=utf-8");
-    var cacheControl = noCache ? "no-store, no-cache, must-revalidate, max-age=0"
-      : "public, max-age=300, stale-while-revalidate=60";
+    const cacheControl = noCache ? "no-store, no-cache, must-revalidate, max-age=0" : "public, max-age=300, stale-while-revalidate=60";
     res.setHeader("Cache-Control", cacheControl);
 
     if (req.headers["if-none-match"] === etag && !noCache) {
@@ -262,15 +269,35 @@ app.get("/feeds/graph.json", async function (req, res) {
     }
     res.send(body);
   } catch (err) {
-    console.error("graph.json error:", err);
+    console.error("Feed graph error:", err);
     res.status(500).json({ error: "feed_failed" });
-  } finally {
-    if (client) client.release();
+  }
+});
+
+// ===== Diagnostics (keep: schema) =====
+app.get("/diag/schema", async function (_req, res) {
+  try {
+    const tables = await pool.query(`
+      SELECT table_name
+      FROM information_schema.tables
+      WHERE table_schema = 'public'
+      ORDER BY table_name
+    `);
+    const cols = await pool.query(`
+      SELECT table_name, column_name, data_type
+      FROM information_schema.columns
+      WHERE table_schema = 'public'
+      ORDER BY table_name, ordinal_position
+    `);
+    res.json({ tables: tables.rows, columns: cols.rows });
+  } catch (err) {
+    console.error("diag/schema error:", err);
+    res.status(500).json({ error: "diag_failed" });
   }
 });
 
 // ===== Boot =====
 app.listen(PORT, function () {
-  var fp = crypto.createHash("sha256").update(HMAC_SECRET).digest("hex").slice(0, 16);
+  const fp = crypto.createHash("sha256").update(HMAC_SECRET).digest("hex").slice(0, 16);
   console.log("graph-service running on " + PORT + " (secret fp: " + fp + ")");
 });
