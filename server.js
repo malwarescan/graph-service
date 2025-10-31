@@ -99,12 +99,11 @@ app.post("/import", ndjsonBody, function (req, res) {
   const lines = raw.split("\n").filter(Boolean);
   if (lines.length === 0) return res.status(400).json({ error: "no lines" });
 
-  const MAX_LINE_BYTES = 100000; // 100 KB per line (no numeric separators for JSHint)
+  const MAX_LINE_BYTES = 100000; // 100 KB per line
   const batch = [];
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
-
     if (line.length > MAX_LINE_BYTES) {
       return res.status(413).json({ error: "line too large" });
     }
@@ -124,32 +123,69 @@ app.post("/import", ndjsonBody, function (req, res) {
   return res.json({ accepted: batch.length });
 });
 
-// ===== Feeds =====
-function setNdjsonHeaders(res) {
+// ===== Feeds (ETag + nocache aware) =====
+function setNdjsonHeaders(res, noCache, body) {
+  // Compute an ETag hash for conditional GETs
+  const etag = crypto.createHash("sha256").update(body).digest("hex");
+  res.setHeader("ETag", etag);
   res.setHeader("Content-Type", "application/x-ndjson; charset=utf-8");
-  // Edge cache 300s; browsers short cache to avoid staleness while developing
-  res.setHeader("Cache-Control", "public, max-age=300, stale-while-revalidate=60");
+
+  if (noCache) {
+    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0");
+  } else {
+    res.setHeader("Cache-Control", "public, max-age=300, stale-while-revalidate=60");
+  }
+  return etag;
 }
 
-app.get("/feeds/croutons.ndjson", function (_req, res) {
-  setNdjsonHeaders(res);
+// /feeds/croutons.ndjson
+app.get("/feeds/croutons.ndjson", function (req, res) {
+  const noCache = String(req.query.nocache || "") === "1";
   const rows = (global.__CROUTONS || []).map(function (o) { return JSON.stringify(o); });
-  res.send(rows.join("\n") + "\n");
+  const body = rows.join("\n") + "\n";
+
+  const etag = setNdjsonHeaders(res, noCache, body);
+  if (req.headers["if-none-match"] === etag && !noCache) {
+    return res.status(304).end();
+  }
+  res.send(body);
 });
 
-app.get("/feeds/corpora.ndjson", function (_req, res) {
-  setNdjsonHeaders(res);
+// /feeds/corpora.ndjson
+app.get("/feeds/corpora.ndjson", function (req, res) {
+  const noCache = String(req.query.nocache || "") === "1";
   const rows = (global.__CORPORA || []).map(function (o) { return JSON.stringify(o); });
-  res.send(rows.join("\n") + "\n");
+  const body = rows.join("\n") + "\n";
+
+  const etag = setNdjsonHeaders(res, noCache, body);
+  if (req.headers["if-none-match"] === etag && !noCache) {
+    return res.status(304).end();
+  }
+  res.send(body);
 });
 
-app.get("/feeds/graph.json", function (_req, res) {
-  res.setHeader("Content-Type", "application/json; charset=utf-8");
-  res.setHeader("Cache-Control", "public, max-age=300, stale-while-revalidate=60");
-  res.send(JSON.stringify({
+// /feeds/graph.json
+app.get("/feeds/graph.json", function (req, res) {
+  const noCache = String(req.query.nocache || "") === "1";
+  const payload = {
     generated_at: new Date().toISOString(),
     triples: global.__GRAPH || []
-  }, null, 2));
+  };
+  const body = JSON.stringify(payload, null, 2);
+
+  const etag = crypto.createHash("sha256").update(body).digest("hex");
+  res.setHeader("ETag", etag);
+  res.setHeader("Content-Type", "application/json; charset=utf-8");
+
+  // Avoid JSHint W014 by not splitting ternary across lines
+  var cacheControl = "public, max-age=300, stale-while-revalidate=60";
+  if (noCache) cacheControl = "no-store, no-cache, must-revalidate, max-age=0";
+  res.setHeader("Cache-Control", cacheControl);
+
+  if (req.headers["if-none-match"] === etag && !noCache) {
+    return res.status(304).end();
+  }
+  res.send(body);
 });
 
 // ===== Boot =====
