@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Croutons Graph API Documentation</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/redoc@next/bundles/redoc.standalone.js"></script>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
+    code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    redoc { display: block; }
+  </style>
+</head>
+<body class="bg-[#F8F8F8] min-h-screen">
+  <section class="w-full bg-white py-24 px-8">
+    <div class="max-w-6xl mx-auto">
+      <!-- Navigation -->
+      <div class="mb-8">
+        <a href="/dashboard" class="inline-flex items-center text-[#00C2FF] hover:text-[#0A0A0A] transition-colors duration-200 font-mono text-sm">
+          ← Back to Dashboard
+        </a>
+      </div>
+
+      <!-- Header -->
+      <div class="text-center mb-16">
+        <h1 class="text-4xl md:text-5xl font-bold text-[#0A0A0A] mb-4">
+          Croutons Graph API Documentation
+        </h1>
+        <p class="text-lg text-[#6B6B6B] font-mono">
+          Base URL: <code class="bg-[#F8F8F8] px-2 py-1 rounded">https://graph.croutons.ai</code>
+        </p>
+      </div>
+
+      <!-- Overview Section -->
+      <div class="border-2 border-[#0A0A0A] p-8 mb-8">
+        <h2 class="text-2xl font-bold text-[#0A0A0A] mb-6">Overview</h2>
+        <div class="text-[#0A0A0A] leading-relaxed space-y-4">
+          <p>
+            The Croutons Graph API provides a RESTful interface for managing micro-facts (croutons) and their relationships (triples) in a knowledge graph. The service supports HMAC-verified ingestion of NDJSON data, real-time querying, and administrative tools for monitoring and search.
+          </p>
+          <p>
+            All data ingestion requires HMAC-SHA256 signature verification using the <code class="bg-[#F8F8F8] px-1 py-0.5 rounded text-sm">X-Signature</code> header. Public feeds are cache-friendly with ETag support, while admin endpoints require authentication and are not cached.
+          </p>
+        </div>
+      </div>
+
+      <!-- Endpoints Section -->
+      <div class="border-2 border-[#0A0A0A] p-8 mb-8">
+        <h2 class="text-2xl font-bold text-[#0A0A0A] mb-6">Endpoints</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <!-- Feed Endpoints -->
+          <div>
+            <h3 class="font-bold text-[#0A0A0A] mb-4 font-mono uppercase tracking-wider text-xs">Public Feeds</h3>
+            <div class="space-y-4">
+              <div>
+                <code class="text-[#0A0A0A] font-mono text-sm bg-[#F8F8F8] px-2 py-1 rounded block mb-1">GET /feeds/croutons.ndjson</code>
+                <p class="text-sm text-[#6B6B6B]">Returns all croutons as newline-delimited JSON. Cache-friendly with ETag support.</p>
+              </div>
+              <div>
+                <code class="text-[#0A0A0A] font-mono text-sm bg-[#F8F8F8] px-2 py-1 rounded block mb-1">GET /feeds/graph.json</code>
+                <p class="text-sm text-[#6B6B6B]">Returns all triples as a JSON object with metadata. Cache-friendly with ETag support.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Ingestion Endpoints -->
+          <div>
+            <h3 class="font-bold text-[#0A0A0A] mb-4 font-mono uppercase tracking-wider text-xs">Ingestion</h3>
+            <div class="space-y-4">
+              <div>
+                <code class="text-[#0A0A0A] font-mono text-sm bg-[#F8F8F8] px-2 py-1 rounded block mb-1">POST /import</code>
+                <p class="text-sm text-[#6B6B6B]">Accepts NDJSON payload with HMAC signature. Inserts croutons and extracts triples.</p>
+              </div>
+              <div>
+                <code class="text-[#0A0A0A] font-mono text-sm bg-[#F8F8F8] px-2 py-1 rounded block mb-1">GET /healthz</code>
+                <p class="text-sm text-[#6B6B6B]">Health check endpoint. Returns "ok" if service is running.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Diagnostic Endpoints -->
+          <div>
+            <h3 class="font-bold text-[#0A0A0A] mb-4 font-mono uppercase tracking-wider text-xs">Diagnostics</h3>
+            <div class="space-y-4">
+              <div>
+                <code class="text-[#0A0A0A] font-mono text-sm bg-[#F8F8F8] px-2 py-1 rounded block mb-1">GET /diag/stats</code>
+                <p class="text-sm text-[#6B6B6B]">Returns counts of croutons and triples, plus server time.</p>
+              </div>
+              <div>
+                <code class="text-[#0A0A0A] font-mono text-sm bg-[#F8F8F8] px-2 py-1 rounded block mb-1">GET /diag/schema</code>
+                <p class="text-sm text-[#6B6B6B]">Returns database schema information (tables and columns).</p>
+              </div>
+              <div>
+                <code class="text-[#0A0A0A] font-mono text-sm bg-[#F8F8F8] px-2 py-1 rounded block mb-1">GET /diag/ping</code>
+                <p class="text-sm text-[#6B6B6B]">Returns HMAC probe payload for signature testing.</p>
+              </div>
+              <div>
+                <code class="text-[#0A0A0A] font-mono text-sm bg-[#F8F8F8] px-2 py-1 rounded block mb-1">POST /diag/echo</code>
+                <p class="text-sm text-[#6B6B6B]">Echoes request body and validates X-Signature header.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Admin Endpoints -->
+          <div>
+            <h3 class="font-bold text-[#0A0A0A] mb-4 font-mono uppercase tracking-wider text-xs">Admin</h3>
+            <div class="space-y-4">
+              <div>
+                <code class="text-[#0A0A0A] font-mono text-sm bg-[#F8F8F8] px-2 py-1 rounded block mb-1">GET /admin/search/croutons</code>
+                <p class="text-sm text-[#6B6B6B]">Search croutons by text, source_url. Query params: text, source_url, limit, newest.</p>
+              </div>
+              <div>
+                <code class="text-[#0A0A0A] font-mono text-sm bg-[#F8F8F8] px-2 py-1 rounded block mb-1">GET /admin/search/triples</code>
+                <p class="text-sm text-[#6B6B6B]">Search triples by subject, predicate, object. Query params: subject, predicate, object, limit, newest.</p>
+              </div>
+              <div>
+                <code class="text-[#0A0A0A] font-mono text-sm bg-[#F8F8F8] px-2 py-1 rounded block mb-1">GET /admin/ingestion/recent</code>
+                <p class="text-sm text-[#6B6B6B]">Returns recently ingested croutons. Query params: minutes, limit.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- OpenAPI Viewer Section -->
+      <div class="border-2 border-[#0A0A0A] p-8 mb-8">
+        <h2 class="text-2xl font-bold text-[#0A0A0A] mb-6">OpenAPI Specification</h2>
+        <div class="w-full">
+          <redoc spec-url="/openapi.yaml" hide-download-button hide-single-request-sample></redoc>
+        </div>
+      </div>
+    </div>
+  </section>
+</body>
+</html>
+

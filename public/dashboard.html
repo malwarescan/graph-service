@@ -5,9 +5,16 @@
   <title>Graph Service Dashboard</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
   <style>
     body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
     code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    .graph-container { border: 2px solid #0A0A0A; overflow: hidden; position: relative; background: #fff; border-radius: 0.5rem; }
+    .graph-sidebar { border-left: 2px solid #0A0A0A; background: #F8F8F8; border-radius: 0.5rem; }
+    .graph-badge { font-size: 11px; line-height: 1; padding: 2px 6px; border-radius: 9999px; background: #F8F8F8; color: #0A0A0A; border: 1px solid #0A0A0A; }
+    .graph-pill { font-size: 12px; padding: 2px 8px; border-radius: 9999px; background: #F8F8F8; color: #0A0A0A; border: 1px solid #0A0A0A; }
+    .graph-link-label { pointer-events: none; font-size: 11px; fill: #6B6B6B; }
   </style>
 </head>
 <body class="bg-[#F8F8F8] min-h-screen">
@@ -53,9 +60,40 @@
         </div>
       </div>
 
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-        <div class="border-2 border-[#0A0A0A] p-8">
-          <h2 class="text-2xl font-bold text-[#0A0A0A] mb-6">Search Croutons</h2>
+      <!-- Tabs -->
+      <div id="app">
+        <div class="flex gap-2 border-b-2 border-[#0A0A0A] pb-2 mb-8">
+          <button 
+            @click="tab='search'" 
+            :class="tab==='search' ? 'font-bold text-[#00C2FF] border-b-2 border-[#00C2FF] pb-2 -mb-[2px] px-4' : 'text-[#6B6B6B] hover:text-[#0A0A0A] px-4 transition-colors duration-200'"
+            class="font-mono text-sm uppercase tracking-wider">
+            Search
+          </button>
+          <button 
+            @click="tab='ingestion'" 
+            :class="tab==='ingestion' ? 'font-bold text-[#00C2FF] border-b-2 border-[#00C2FF] pb-2 -mb-[2px] px-4' : 'text-[#6B6B6B] hover:text-[#0A0A0A] px-4 transition-colors duration-200'"
+            class="font-mono text-sm uppercase tracking-wider">
+            Ingestion
+          </button>
+          <button 
+            @click="tab='tools'" 
+            :class="tab==='tools' ? 'font-bold text-[#00C2FF] border-b-2 border-[#00C2FF] pb-2 -mb-[2px] px-4' : 'text-[#6B6B6B] hover:text-[#0A0A0A] px-4 transition-colors duration-200'"
+            class="font-mono text-sm uppercase tracking-wider">
+            Tools
+          </button>
+          <button 
+            @click="tab='graph'" 
+            :class="tab==='graph' ? 'font-bold text-[#00C2FF] border-b-2 border-[#00C2FF] pb-2 -mb-[2px] px-4' : 'text-[#6B6B6B] hover:text-[#0A0A0A] px-4 transition-colors duration-200'"
+            class="font-mono text-sm uppercase tracking-wider">
+            Graph View
+          </button>
+        </div>
+
+        <!-- Search Tab -->
+        <div v-if="tab==='search'">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            <div class="border-2 border-[#0A0A0A] p-8">
+              <h2 class="text-2xl font-bold text-[#0A0A0A] mb-6">Search Croutons</h2>
           <form id="formCr" class="flex gap-3 flex-wrap items-end mb-4" onsubmit="return false;">
             <div>
               <label class="text-xs font-mono text-[#6B6B6B] block mb-1">Text</label>
@@ -139,13 +177,16 @@
               <tbody><tr><td colspan="5" class="text-[#6B6B6B] p-3">No results</td></tr></tbody>
             </table>
           </div>
-          <div class="text-sm text-[#6B6B6B] font-mono mt-2" id="trMeta"></div>
+              <div class="text-sm text-[#6B6B6B] font-mono mt-2" id="trMeta"></div>
+            </div>
+          </div>
         </div>
-      </div>
 
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-        <div class="border-2 border-[#0A0A0A] p-8">
-          <h2 class="text-2xl font-bold text-[#0A0A0A] mb-6">Recent Ingestion</h2>
+        <!-- Ingestion Tab -->
+        <div v-if="tab==='ingestion'">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            <div class="border-2 border-[#0A0A0A] p-8">
+              <h2 class="text-2xl font-bold text-[#0A0A0A] mb-6">Recent Ingestion</h2>
           <form id="formIngest" class="flex gap-3 flex-wrap items-end mb-4" onsubmit="return false;">
             <div>
               <label class="text-xs font-mono text-[#6B6B6B] block mb-1">Minutes</label>
@@ -170,11 +211,16 @@
               <tbody><tr><td colspan="4" class="text-[#6B6B6B] p-3">No data</td></tr></tbody>
             </table>
           </div>
-          <div class="text-sm text-[#6B6B6B] font-mono mt-2" id="ingMeta"></div>
+              <div class="text-sm text-[#6B6B6B] font-mono mt-2" id="ingMeta"></div>
+            </div>
+          </div>
         </div>
 
-        <div class="border-2 border-[#0A0A0A] p-8">
-          <h2 class="text-2xl font-bold text-[#0A0A0A] mb-6">Signature Probe</h2>
+        <!-- Tools Tab -->
+        <div v-if="tab==='tools'">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            <div class="border-2 border-[#0A0A0A] p-8">
+              <h2 class="text-2xl font-bold text-[#0A0A0A] mb-6">Signature Probe</h2>
           <div class="text-sm text-[#6B6B6B] mb-4" id="probeInfo">Use to test client HMAC flow.</div>
           <div class="flex gap-3 flex-wrap items-center mb-4">
             <button id="btnPing" class="px-6 py-2 bg-[#0A0A0A] text-white font-medium hover:bg-[#00C2FF] transition-colors duration-200 rounded-lg cursor-pointer">Fetch /diag/ping</button>
@@ -186,21 +232,83 @@
           </div>
           <div>
             <div class="text-sm text-[#6B6B6B] font-mono mb-2">Echo response</div>
-            <pre id="echoOut" class="bg-[#F8F8F8] border-2 border-[#0A0A0A] p-3 rounded-lg overflow-auto text-sm max-h-[180px] whitespace-pre-wrap">(none)</pre>
+              <pre id="echoOut" class="bg-[#F8F8F8] border-2 border-[#0A0A0A] p-3 rounded-lg overflow-auto text-sm max-h-[180px] whitespace-pre-wrap">(none)</pre>
+            </div>
           </div>
         </div>
 
-        <div class="border-2 border-[#0A0A0A] p-8">
-          <h2 class="text-2xl font-bold text-[#0A0A0A] mb-6">HMAC Upload Test</h2>
-          <div>
-            <input type="file" id="fileNDJSON" accept=".ndjson,.txt,application/x-ndjson" class="border-2 border-[#0A0A0A] rounded-lg px-3 py-2 w-full mb-2" />
-            <div class="mt-2">
-              <input type="text" id="hmacKey" placeholder="HMAC Key (optional)" class="border-2 border-[#0A0A0A] rounded-lg px-3 py-2 w-full" />
+        <!-- Graph View Tab -->
+        <div v-if="tab==='graph'" class="grid grid-cols-1 lg:grid-cols-12 gap-4 mb-8">
+          <!-- Canvas -->
+          <div class="lg:col-span-8 xl:col-span-9">
+            <div class="flex items-center justify-between mb-3">
+              <h2 class="text-2xl font-bold text-[#0A0A0A]">Graph Visualization</h2>
+              <div class="flex items-center gap-2">
+                <span class="graph-pill">Nodes: {{ graph.nodes.length }}</span>
+                <span class="graph-pill">Links: {{ graph.links.length }}</span>
+                <button @click="refreshGraph" :disabled="graph.loading" class="px-6 py-2 bg-[#0A0A0A] text-white font-medium hover:bg-[#00C2FF] transition-colors duration-200 rounded-lg cursor-pointer disabled:bg-[#6B6B6B] disabled:opacity-60 disabled:cursor-not-allowed">Refresh</button>
+              </div>
             </div>
-            <button id="btnUpload" class="mt-2 px-6 py-2 bg-[#0A0A0A] text-white font-medium hover:bg-[#00C2FF] transition-colors duration-200 rounded-lg cursor-pointer">Upload to /import</button>
-            <pre id="uploadOut" class="mt-3 bg-[#F8F8F8] border-2 border-[#0A0A0A] p-3 rounded-lg overflow-auto text-sm max-h-[160px] whitespace-pre-wrap">(none)</pre>
+
+            <div class="graph-container rounded-xl h-[600px]" id="graph-canvas">
+              <div v-if="graph.loading" class="absolute inset-0 flex items-center justify-center text-[#6B6B6B] font-mono">Loading graph…</div>
+              <div v-if="graph.error" class="absolute top-3 right-3 text-[#EF4444] text-sm font-mono">Error: {{ graph.error }}</div>
+            </div>
+            <p class="mt-2 text-xs text-[#6B6B6B] font-mono">Tip: scroll to zoom, drag background to pan, drag nodes to reposition. Click a node to inspect.</p>
           </div>
+
+          <!-- Sidebar -->
+          <aside class="lg:col-span-4 xl:col-span-3 graph-sidebar rounded-xl p-4 border-2 border-[#0A0A0A]">
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="text-xl font-bold text-[#0A0A0A]">Inspector</h3>
+              <button v-if="graph.selected" @click="clearSelection" class="text-sm text-[#6B6B6B] hover:text-[#0A0A0A] transition-colors duration-200 font-mono">Clear</button>
+            </div>
+
+            <div v-if="!graph.selected" class="text-sm text-[#6B6B6B] font-mono">
+              Select a node in the graph to view details.
+            </div>
+
+            <div v-else>
+              <div class="mb-4">
+                <div class="text-xs font-mono text-[#6B6B6B] mb-1 uppercase tracking-wider">Node</div>
+                <div class="font-mono break-words text-[#0A0A0A]">{{ graph.selected.id }}</div>
+              </div>
+
+              <div class="mb-4 flex items-center gap-2">
+                <span class="graph-badge">Degree: {{ graph.selected.degree }}</span>
+                <span class="graph-badge">Neighbors: {{ (graph.neighborMap[graph.selected.id] || new Set()).size }}</span>
+              </div>
+
+              <div class="mb-4">
+                <div class="text-xs font-mono text-[#6B6B6B] mb-2 uppercase tracking-wider">Neighbors</div>
+                <div class="flex flex-wrap gap-2">
+                  <button
+                    v-for="n in Array.from(graph.neighborMap[graph.selected.id] || [])"
+                    :key="n"
+                    @click="selectNode(n)"
+                    class="px-2 py-1 text-xs rounded-full bg-white border-2 border-[#0A0A0A] hover:bg-[#0A0A0A] hover:text-white transition-colors duration-200 font-mono">
+                    {{ n }}
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <div class="text-xs font-mono text-[#6B6B6B] mb-2 uppercase tracking-wider">Incident Triples</div>
+                <div class="space-y-2 max-h-[260px] overflow-auto pr-1">
+                  <div
+                    v-for="(t, idx) in selectedIncidentTriples()"
+                    :key="idx"
+                    class="bg-white border-2 border-[#0A0A0A] rounded-lg p-2">
+                    <div class="text-xs text-[#6B6B6B] font-mono uppercase tracking-wider mb-1">{{ t.role }}</div>
+                    <div class="text-sm text-[#0A0A0A]"><span class="font-mono">{{ graph.selected.id }}</span> — <span class="font-bold">{{ t.predicate }}</span> — <span class="font-mono">{{ t.other }}</span></div>
+                  </div>
+                  <div v-if="!selectedIncidentTriples().length" class="text-xs text-[#6B6B6B] font-mono">No triples found for this node.</div>
+                </div>
+              </div>
+            </div>
+          </aside>
         </div>
+      </div>
 
       <footer class="text-sm text-[#6B6B6B] font-mono text-center mt-8">
         Built for croutons ingestion and verification. Feeds are cache friendly. Admin pages are no cache.
@@ -404,38 +512,6 @@
     }
     function pretty(j){ try { return JSON.stringify(j, null, 2); } catch { return String(j); } }
 
-    // HMAC upload test
-    $("#btnUpload").addEventListener("click", async () => {
-      const file = $("#fileNDJSON").files[0];
-      if (!file) return alert("Select a .ndjson file first.");
-      const key = $("#hmacKey").value.trim() || "dev-secret";
-      const text = await file.text();
-      const sig = await hmacHex(text, key);
-      try {
-        const r = await fetch("/import", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/x-ndjson",
-            "X-Signature": "sha256=" + sig,
-          },
-          body: text,
-        });
-        const j = await r.json();
-        $("#uploadOut").textContent = JSON.stringify(j, null, 2);
-      } catch (e) {
-        $("#uploadOut").textContent = "Error: " + e.message;
-      }
-    });
-
-    // Browser-side HMAC (matches server)
-    function hmacHex(str, key) {
-      const enc = new TextEncoder().encode;
-      return crypto.subtle
-        .importKey("raw", enc(key), { name: "HMAC", hash: "SHA-256" }, false, ["sign"])
-        .then(k => crypto.subtle.sign("HMAC", k, enc(str)))
-        .then(b => Array.from(new Uint8Array(b)).map(x => x.toString(16).padStart(2, "0")).join(""));
-    }
-
     // Initial loads
     searchCroutons();
     searchTriples();
@@ -445,6 +521,259 @@
     setInterval(() => {
       loadRecent();
     }, 30000);
+
+    // Vue.js App for Graph View
+    const { createApp } = Vue;
+    createApp({
+      data() {
+        return {
+          tab: 'search',
+          graph: {
+            loaded: false,
+            loading: false,
+            error: null,
+            nodes: [],
+            links: [],
+            nodeIndex: {},
+            neighborMap: {},
+            selected: null,
+            triples: []
+          }
+        }
+      },
+      watch: {
+        tab(newTab) {
+          if (newTab === 'graph' && !this.graph.loaded && !this.graph.loading) {
+            this.loadGraph();
+          }
+        }
+      },
+      methods: {
+        async loadGraph() {
+          if (this.graph.loading) return;
+          this.graph.loading = true;
+          this.graph.error = null;
+          try {
+            const res = await fetch('/feeds/graph.json?nocache=1');
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            const payload = await res.json();
+            const triples = Array.isArray(payload?.triples) ? payload.triples : [];
+            
+            // Build nodes and links
+            const nodesMap = Object.create(null);
+            const neighborMap = Object.create(null);
+            const links = [];
+            
+            for (const t of triples) {
+              const s = String(t.subject || '').trim();
+              const o = String(t.object || '').trim();
+              const p = String(t.predicate || '').trim();
+              if (!s || !o) continue;
+              
+              if (!nodesMap[s]) nodesMap[s] = { id: s, degree: 0 };
+              if (!nodesMap[o]) nodesMap[o] = { id: o, degree: 0 };
+              
+              nodesMap[s].degree++;
+              nodesMap[o].degree++;
+              
+              neighborMap[s] = neighborMap[s] || new Set();
+              neighborMap[o] = neighborMap[o] || new Set();
+              neighborMap[s].add(o);
+              neighborMap[o].add(s);
+              
+              links.push({ source: s, target: o, label: p });
+            }
+            
+            const nodes = Object.values(nodesMap);
+            this.graph.nodes = nodes;
+            this.graph.links = links;
+            this.graph.nodeIndex = nodes.reduce((acc, n) => (acc[n.id] = n, acc), {});
+            this.graph.neighborMap = neighborMap;
+            this.graph.triples = triples;
+            this.graph.loaded = true;
+            this.$nextTick(() => this.renderGraph());
+          } catch (err) {
+            console.error('Graph load error', err);
+            this.graph.error = String(err?.message || err);
+          } finally {
+            this.graph.loading = false;
+          }
+        },
+        renderGraph() {
+          d3.select('#graph-canvas').selectAll('*').remove();
+          const container = document.getElementById('graph-canvas');
+          if (!container) return;
+          const width = container.clientWidth || 800;
+          const height = 600;
+          
+          const svg = d3.select('#graph-canvas')
+            .append('svg')
+            .attr('width', width)
+            .attr('height', height);
+          
+          const zoomLayer = svg.append('g');
+          svg.call(d3.zoom().scaleExtent([0.2, 3]).on('zoom', (event) => {
+            zoomLayer.attr('transform', event.transform);
+          }));
+          
+          svg.append('defs').append('marker')
+            .attr('id', 'arrow')
+            .attr('viewBox', '0 -5 10 10')
+            .attr('refX', 18).attr('refY', 0)
+            .attr('markerWidth', 6).attr('markerHeight', 6)
+            .attr('orient', 'auto')
+            .append('path')
+            .attr('d', 'M0,-5L10,0L0,5')
+            .attr('fill', '#6B6B6B');
+          
+          const links = this.graph.links.map(d => ({ source: d.source, target: d.target, label: d.label }));
+          const nodes = this.graph.nodes.map(d => ({ id: d.id, degree: d.degree }));
+          
+          const link = zoomLayer.append('g')
+            .attr('stroke', '#6B6B6B')
+            .attr('stroke-opacity', 0.6)
+            .selectAll('line')
+            .data(links)
+            .enter().append('line')
+            .attr('stroke-width', 1.2)
+            .attr('marker-end', 'url(#arrow)');
+          
+          const linkLabel = zoomLayer.append('g')
+            .selectAll('text')
+            .data(links)
+            .enter().append('text')
+            .attr('class', 'graph-link-label')
+            .text(d => d.label || '');
+          
+          const nodeGroup = zoomLayer.append('g')
+            .selectAll('g')
+            .data(nodes)
+            .enter().append('g')
+            .call(d3.drag()
+              .on('start', dragstarted)
+              .on('drag', dragged)
+              .on('end', dragended));
+          
+          nodeGroup.append('circle')
+            .attr('r', d => 6 + Math.min(10, d.degree))
+            .attr('fill', '#00C2FF')
+            .attr('stroke', '#0A0A0A')
+            .attr('stroke-width', 1.5);
+          
+          nodeGroup.append('text')
+            .text(d => d.id.length > 20 ? d.id.slice(0, 17) + '...' : d.id)
+            .attr('x', 12)
+            .attr('y', 4)
+            .attr('font-size', '11px')
+            .attr('fill', '#0A0A0A')
+            .attr('font-family', 'ui-monospace, monospace');
+          
+          nodeGroup.on('mouseenter', (_e, d) => this.highlightNode(d.id, true));
+          nodeGroup.on('mouseleave', (_e, d) => this.highlightNode(d.id, false));
+          nodeGroup.on('click', (_e, d) => this.selectNode(d.id));
+          
+          const sim = d3.forceSimulation(nodes)
+            .force('link', d3.forceLink(links).id(d => d.id).distance(110).strength(0.6))
+            .force('charge', d3.forceManyBody().strength(-280))
+            .force('center', d3.forceCenter(width / 2, height / 2))
+            .on('tick', ticked);
+          
+          function ticked() {
+            link
+              .attr('x1', d => d.source.x)
+              .attr('y1', d => d.source.y)
+              .attr('x2', d => d.target.x)
+              .attr('y2', d => d.target.y);
+            
+            nodeGroup.attr('transform', d => `translate(${d.x},${d.y})`);
+            
+            linkLabel
+              .attr('x', d => (d.source.x + d.target.x) / 2)
+              .attr('y', d => (d.source.y + d.target.y) / 2 - 4);
+          }
+          
+          function dragstarted(event, d) {
+            if (!event.active) sim.alphaTarget(0.3).restart();
+            d.fx = d.x; d.fy = d.y;
+          }
+          
+          function dragged(event, d) {
+            d.fx = event.x; d.fy = event.y;
+          }
+          
+          function dragended(event, d) {
+            if (!event.active) sim.alphaTarget(0);
+            d.fx = null; d.fy = null;
+          }
+          
+          this._graphRefs = { svg, zoomLayer, nodeGroup, link, linkLabel, nodes, links, sim };
+        },
+        highlightNode(nodeId, on) {
+          if (!this._graphRefs || this.graph.selected) return;
+          const { nodeGroup, link } = this._graphRefs;
+          const neighbors = this.graph.neighborMap[nodeId] || new Set();
+          
+          nodeGroup.selectAll('circle')
+            .attr('opacity', d => on ? (d.id === nodeId || neighbors.has(d.id) ? 1 : 0.25) : 1);
+          nodeGroup.selectAll('text')
+            .attr('opacity', d => on ? (d.id === nodeId || neighbors.has(d.id) ? 1 : 0.25) : 1);
+          link
+            .attr('opacity', d => on ? (d.source.id === nodeId || d.target.id === nodeId ||
+                                       neighbors.has(d.source.id) || neighbors.has(d.target.id) ? 1 : 0.2) : 1);
+        },
+        selectNode(nodeId) {
+          this.graph.selected = this.graph.nodeIndex[nodeId] || null;
+          if (!this._graphRefs) return;
+          const { nodeGroup, link } = this._graphRefs;
+          if (!this.graph.selected) {
+            nodeGroup.selectAll('circle').attr('opacity', 1);
+            nodeGroup.selectAll('text').attr('opacity', 1);
+            link.attr('opacity', 1);
+            return;
+          }
+          const neighbors = this.graph.neighborMap[nodeId] || new Set();
+          nodeGroup.selectAll('circle')
+            .attr('opacity', d => (d.id === nodeId || neighbors.has(d.id) ? 1 : 0.15));
+          nodeGroup.selectAll('text')
+            .attr('opacity', d => (d.id === nodeId || neighbors.has(d.id) ? 1 : 0.15));
+          link.attr('opacity', d => (d.source.id === nodeId || d.target.id === nodeId ||
+                                     neighbors.has(d.source.id) || neighbors.has(d.target.id) ? 1 : 0.12));
+        },
+        clearSelection() {
+          this.graph.selected = null;
+          if (!this._graphRefs) return;
+          const { nodeGroup, link } = this._graphRefs;
+          nodeGroup.selectAll('circle').attr('opacity', 1);
+          nodeGroup.selectAll('text').attr('opacity', 1);
+          link.attr('opacity', 1);
+        },
+        selectedIncidentTriples() {
+          const sel = this.graph.selected?.id;
+          if (!sel) return [];
+          const out = [];
+          for (const t of this.graph.triples) {
+            const s = String(t.subject || '');
+            const o = String(t.object || '');
+            const p = String(t.predicate || '');
+            if (s === sel) out.push({ role: 'subject', predicate: p, other: o, raw: t });
+            else if (o === sel) out.push({ role: 'object', predicate: p, other: s, raw: t });
+          }
+          return out;
+        },
+        refreshGraph() {
+          this.clearSelection();
+          this.graph.loaded = false;
+          this.loadGraph();
+        }
+      },
+      mounted() {
+        const onResize = () => {
+          if (this.tab === 'graph' && this.graph.loaded) this.renderGraph();
+        };
+        window.addEventListener('resize', onResize);
+        this.$once?.('hook:beforeUnmount', () => window.removeEventListener('resize', onResize));
+      }
+    }).mount('#app');
   </script>
 </body>
 </html>
