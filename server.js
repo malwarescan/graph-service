@@ -3,6 +3,7 @@
 // server.js — Graph API + Admin Tools (Query Search, HMAC Validator, Ingestion Monitor)
 const express = require("express");
 const crypto = require("crypto");
+const path = require("path");
 const { Pool } = require("pg");
 
 const app = express();
@@ -318,7 +319,7 @@ app.get("/admin/ingestion/recent", async function (req, res) {
   res.json({ window_minutes: minutes, items: rows, count: rows.length, now: new Date().toISOString() });
 });
 
-// ===== Static Admin UI =====
+// ===== Static Files =====
 
 // Optional Basic Auth
 if (process.env.ADMIN_USER && process.env.ADMIN_PASS) {
@@ -334,22 +335,33 @@ if (process.env.ADMIN_USER && process.env.ADMIN_PASS) {
   });
 }
 
-// Explicit route for /dashboard to serve dashboard.html
-app.get("/dashboard", (req, res) => {
-  res.sendFile(require("path").join(__dirname, "public", "dashboard.html"));
-});
+// ===== Static + Explicit Routes (serve admin files) =====
 
-app.use("/", express.static("public", {
+// Serve static files from /public
+app.use(express.static(path.join(__dirname, "public"), {
   etag: true,
-  setHeaders: function (res, path) {
-    // Short cache for HTML, longer for assets if you add any later
-    if (path.endsWith(".html")) {
+  setHeaders: (res, filePath) => {
+    if (filePath.endsWith(".html")) {
       res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0");
     } else {
       res.setHeader("Cache-Control", "public, max-age=300, stale-while-revalidate=60");
     }
   }
 }));
+
+// Explicit routes for HTML pages
+app.get("/dashboard", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "dashboard.html"));
+});
+
+app.get("/docs", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "docs.html"));
+});
+
+// Redirect root → dashboard
+app.get("/", (req, res) => {
+  res.redirect("/dashboard");
+});
 
 // ===== Boot =====
 app.listen(PORT, function () {
