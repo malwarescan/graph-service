@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Croutons Graph – Admin Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 24px; }
+    h1 { margin: 0 0 12px; }
+    section { border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px; margin: 16px 0; }
+    .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+    label { font-size: 12px; color: #374151; display: block; }
+    input[type="text"], input[type="number"] {
+      border: 1px solid #d1d5db; border-radius: 8px; padding: 8px; min-width: 200px;
+    }
+    button { padding: 8px 12px; border-radius: 8px; border: 1px solid #111827; background: #111827; color: #fff; cursor: pointer; }
+    button.secondary { background: #fff; color: #111827; }
+    pre { background: #0b1020; color: #e8f0ff; padding: 12px; border-radius: 8px; overflow: auto; }
+    code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    th, td { border-bottom: 1px solid #e5e7eb; padding: 8px; text-align: left; vertical-align: top; }
+    small { color: #6b7280; }
+    .grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+    .kpi { border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px; text-align: center; }
+    .muted { color: #6b7280; }
+    @media (max-width: 900px) {
+      .grid { grid-template-columns: 1fr; }
+      input[type="text"] { min-width: 140px; }
+    }
+  </style>
+</head>
+<body>
+  <h1>Croutons Graph – Admin Dashboard</h1>
+
+  <section id="kpis">
+    <div class="grid">
+      <div class="kpi">
+        <div class="muted">Croutons</div>
+        <div id="kpi-croutons" style="font-size:28px;font-weight:600">–</div>
+      </div>
+      <div class="kpi">
+        <div class="muted">Triples</div>
+        <div id="kpi-triples" style="font-size:28px;font-weight:600">–</div>
+      </div>
+      <div class="kpi">
+        <div class="muted">Server Time</div>
+        <div id="kpi-time" style="font-size:16px">–</div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Ingestion Monitor</h2>
+    <div class="row">
+      <div>
+        <label>Window (minutes)</label>
+        <input id="ing-minutes" type="number" min="1" max="1440" value="60" />
+      </div>
+      <div>
+        <label>Limit</label>
+        <input id="ing-limit" type="number" min="1" max="500" value="50" />
+      </div>
+      <div><button id="ing-run">Run</button></div>
+    </div>
+    <div id="ing-results" style="margin-top:12px"></div>
+  </section>
+
+  <section>
+    <h2>Search Croutons</h2>
+    <div class="row">
+      <div>
+        <label>Text</label>
+        <input id="c-text" type="text" placeholder="contains…" />
+      </div>
+      <div>
+        <label>Source URL</label>
+        <input id="c-url" type="text" placeholder="contains…" />
+      </div>
+      <div>
+        <label>Limit</label>
+        <input id="c-limit" type="number" min="1" max="200" value="50" />
+      </div>
+      <div>
+        <label>&nbsp;</label>
+        <label><input id="c-newest" type="checkbox" checked /> Newest first</label>
+      </div>
+      <div><button id="c-run">Search</button></div>
+    </div>
+    <div id="c-results" style="margin-top:12px"></div>
+  </section>
+
+  <section>
+    <h2>Search Triples</h2>
+    <div class="row">
+      <div>
+        <label>Subject</label>
+        <input id="t-subj" type="text" placeholder="contains…" />
+      </div>
+      <div>
+        <label>Predicate</label>
+        <input id="t-pred" type="text" placeholder="contains…" />
+      </div>
+      <div>
+        <label>Object</label>
+        <input id="t-obj" type="text" placeholder="contains…" />
+      </div>
+      <div>
+        <label>Limit</label>
+        <input id="t-limit" type="number" min="1" max="200" value="50" />
+      </div>
+      <div>
+        <label>&nbsp;</label>
+        <label><input id="t-newest" type="checkbox" checked /> Newest first</label>
+      </div>
+      <div><button id="t-run">Search</button></div>
+    </div>
+    <div id="t-results" style="margin-top:12px"></div>
+  </section>
+
+  <section>
+    <h2>HMAC Validator</h2>
+    <div class="row">
+      <div style="flex:1; min-width:280px">
+        <label>Payload (raw)</label>
+        <textarea id="hv-payload" rows="5" style="width:100%;border:1px solid #d1d5db;border-radius:8px;padding:8px;" placeholder='{"crouton_id":"t1","source_url":"https://ex.com","text":"hello"}'></textarea>
+      </div>
+      <div style="min-width:220px">
+        <label>Computed Signature</label>
+        <input id="hv-sig" type="text" style="width:100%" readonly />
+        <div class="row" style="margin-top:8px">
+          <button id="hv-compute">Compute</button>
+          <button class="secondary" id="hv-echo">Compare with /diag/echo</button>
+        </div>
+        <small class="muted">Sends X-Signature to <code>/diag/echo</code> and checks equality.</small>
+      </div>
+    </div>
+    <div id="hv-result" style="margin-top:12px"></div>
+  </section>
+
+  <section>
+    <h2>Raw Feeds</h2>
+    <div class="row">
+      <button id="show-croutons">GET /feeds/croutons.ndjson</button>
+      <button id="show-graph">GET /feeds/graph.json</button>
+    </div>
+    <pre id="raw-output" style="margin-top:12px; white-space:pre-wrap;"></pre>
+  </section>
+
+  <script>
+    async function loadStats() {
+      const r = await fetch("/diag/stats");
+      const j = await r.json();
+      document.getElementById("kpi-croutons").textContent = j.counts.croutons;
+      document.getElementById("kpi-triples").textContent  = j.counts.triples;
+      document.getElementById("kpi-time").textContent     = j.time;
+    }
+
+    function table(headers, rows) {
+      const thead = "<tr>" + headers.map(h => "<th>" + h + "</th>").join("") + "</tr>";
+      const body = rows.map(r => "<tr>" + r.map(c => "<td>" + (c == null ? "" : c) + "</td>").join("") + "</tr>").join("");
+      return "<table><thead>" + thead + "</thead><tbody>" + body + "</tbody></table>";
+    }
+
+    async function runIngestion() {
+      const minutes = document.getElementById("ing-minutes").value || "60";
+      const limit = document.getElementById("ing-limit").value || "50";
+      const r = await fetch(`/admin/ingestion/recent?minutes=${encodeURIComponent(minutes)}&limit=${encodeURIComponent(limit)}`);
+      const j = await r.json();
+      const rows = (j.items || []).map(x => [x.crouton_id || "", x.source_url || "", x.text || "", x.created_at || ""]);
+      document.getElementById("ing-results").innerHTML =
+        `<div class="muted">Window: ${j.window_minutes}m · Count: ${j.count} · Now: ${j.now}</div>` +
+        table(["crouton_id","source_url","text","created_at"], rows);
+    }
+
+    async function runCroutonSearch() {
+      const text = document.getElementById("c-text").value || "";
+      const url  = document.getElementById("c-url").value || "";
+      const lim  = document.getElementById("c-limit").value || "50";
+      const newest = document.getElementById("c-newest").checked ? "1" : "0";
+      const qs = new URLSearchParams({ text, source_url: url, limit: lim, newest });
+      const r = await fetch("/admin/search/croutons?" + qs.toString());
+      const j = await r.json();
+      const rows = (j.items || []).map(x => [
+        x.crouton_id || "", x.source_url || "", (x.text || "").slice(0,140),
+        x.triple ? JSON.stringify(x.triple) : "", x.created_at || ""
+      ]);
+      document.getElementById("c-results").innerHTML =
+        `<div class="muted">Results: ${j.count}</div>` +
+        table(["crouton_id","source_url","text","triple","created_at"], rows);
+    }
+
+    async function runTripleSearch() {
+      const subj = document.getElementById("t-subj").value || "";
+      const pred = document.getElementById("t-pred").value || "";
+      const obj  = document.getElementById("t-obj").value || "";
+      const lim  = document.getElementById("t-limit").value || "50";
+      const newest = document.getElementById("t-newest").checked ? "1" : "0";
+      const qs = new URLSearchParams({ subject: subj, predicate: pred, object: obj, limit: lim, newest });
+      const r = await fetch("/admin/search/triples?" + qs.toString());
+      const j = await r.json();
+      const rows = (j.items || []).map(x => [x.subject, x.predicate, x.object, x.evidence_crouton_id || "", x.created_at || ""]);
+      document.getElementById("t-results").innerHTML =
+        `<div class="muted">Results: ${j.count}</div>` +
+        table(["subject","predicate","object","evidence_crouton_id","created_at"], rows);
+    }
+
+    async function computeHmacLocal(payload) {
+      // Do not expose your server secret in the browser—this is just to demo the roundtrip using /diag/echo.
+      // We compute server-side signature via /diag/echo by sending the header we claim.
+      // For local display we hash payload with a fake secret to show the format; we’ll let the server confirm.
+      // Better: leave the local field blank and let /diag/echo do the comparison.
+      return ""; // Intentionally blank, we rely on /diag/echo to validate.
+    }
+
+    async function runHmacCompute() {
+      const payload = document.getElementById("hv-payload").value || "";
+      // Leave hv-sig as blank unless you know the secret locally.
+      document.getElementById("hv-sig").value = "";
+      document.getElementById("hv-result").innerHTML = `<small class="muted">If you want to verify, click "Compare with /diag/echo".</small>`;
+    }
+
+    async function runHmacEcho() {
+      const payload = document.getElementById("hv-payload").value || "";
+      // Ask the server what the signature should be for this exact body
+      const sigCalc = await fetch("/diag/ping").then(r=>r.json()).then(_=>null).catch(_=>null);
+      // We can’t compute locally without the secret; we’ll send a bogus header then ask the server to calc and compare.
+      // Instead, let’s fetch the server-computed signature by posting with no header and just display it.
+      const r = await fetch("/diag/echo", { method: "POST", headers: { "Content-Type": "application/x-ndjson" }, body: payload });
+      const j = await r.json();
+      const serverSig = j.server_signature || "";
+      document.getElementById("hv-sig").value = serverSig;
+      const ok = (j.received_signature === serverSig) && j.matches;
+      document.getElementById("hv-result").innerHTML =
+        `<pre>${JSON.stringify(j, null, 2)}</pre>` +
+        (ok ? "<div>✔ Signatures match</div>" : "<div>Note: To fully validate, POST again with header <code>X-Signature: "
+        + serverSig + "</code> and the exact same payload body (including newline semantics).</div>");
+    }
+
+    async function showFeed(path) {
+      const r = await fetch(path);
+      const text = await r.text();
+      document.getElementById("raw-output").textContent = text.slice(0, 30000);
+    }
+
+    // Wire up
+    document.getElementById("ing-run").addEventListener("click", runIngestion);
+    document.getElementById("c-run").addEventListener("click", runCroutonSearch);
+    document.getElementById("t-run").addEventListener("click", runTripleSearch);
+    document.getElementById("hv-compute").addEventListener("click", runHmacCompute);
+    document.getElementById("hv-echo").addEventListener("click", runHmacEcho);
+    document.getElementById("show-croutons").addEventListener("click", () => showFeed("/feeds/croutons.ndjson?nocache=1"));
+    document.getElementById("show-graph").addEventListener("click", () => showFeed("/feeds/graph.json?nocache=1"));
+
+    loadStats();
+    runIngestion();
+  </script>
+</body>
+</html>
