@@ -1,4 +1,6 @@
 cat > .gitignore <<'EOF'
+# inside .gitignore
+.env
 # Node
 node_modules/
 npm-debug.log*

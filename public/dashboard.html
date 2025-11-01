@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Croutons Graph – Admin Dashboard</title>
+  <title>Graph Service Dashboard</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
@@ -15,245 +15,436 @@
     <div class="max-w-6xl mx-auto">
       <div class="text-center mb-16">
         <h1 class="text-4xl md:text-5xl font-bold text-[#0A0A0A] mb-4">
-          Croutons Graph – Admin Dashboard
+          Graph Service Dashboard
         </h1>
+        <p class="text-lg text-[#6B6B6B] max-w-2xl mx-auto">
+          Admin dashboard for croutons, triples, and ingestion.
+        </p>
       </div>
 
-      <section id="kpis" class="mb-8">
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <div class="border-2 border-[#0A0A0A] p-8 hover:bg-[#F8F8F8] transition-colors duration-200">
-            <div class="space-y-2">
-              <div class="text-sm font-mono text-[#6B6B6B] uppercase tracking-wider">
-                Croutons
-              </div>
-              <div id="kpi-croutons" class="text-4xl font-bold text-[#0A0A0A]">–</div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+        <div class="border-2 border-[#0A0A0A] p-8">
+          <h2 class="text-2xl font-bold text-[#0A0A0A] mb-6">Graph Service</h2>
+          <div class="text-sm text-[#6B6B6B] mb-4">Admin dashboard for croutons, triples, and ingestion.</div>
+          <div class="flex gap-2 flex-wrap items-center">
+            <a href="/dashboard" class="inline-flex px-3 py-1 border-2 border-[#0A0A0A] text-[#0A0A0A] font-mono text-xs rounded-full hover:bg-[#0A0A0A] hover:text-white transition-colors duration-200">/dashboard</a>
+            <a href="/feeds/croutons.ndjson" target="_blank" class="inline-flex px-3 py-1 border-2 border-[#0A0A0A] text-[#0A0A0A] font-mono text-xs rounded-full hover:bg-[#0A0A0A] hover:text-white transition-colors duration-200">/feeds/croutons.ndjson</a>
+            <a href="/feeds/graph.json" target="_blank" class="inline-flex px-3 py-1 border-2 border-[#0A0A0A] text-[#0A0A0A] font-mono text-xs rounded-full hover:bg-[#0A0A0A] hover:text-white transition-colors duration-200">/feeds/graph.json</a>
+            <a href="/diag/schema" target="_blank" class="inline-flex px-3 py-1 border-2 border-[#0A0A0A] text-[#0A0A0A] font-mono text-xs rounded-full hover:bg-[#0A0A0A] hover:text-white transition-colors duration-200">/diag/schema</a>
+            <a href="/diag/stats" target="_blank" class="inline-flex px-3 py-1 border-2 border-[#0A0A0A] text-[#0A0A0A] font-mono text-xs rounded-full hover:bg-[#0A0A0A] hover:text-white transition-colors duration-200">/diag/stats</a>
+            <a href="/healthz" target="_blank" class="inline-flex px-3 py-1 border-2 border-[#0A0A0A] text-[#0A0A0A] font-mono text-xs rounded-full hover:bg-[#0A0A0A] hover:text-white transition-colors duration-200">/healthz</a>
+          </div>
+        </div>
+
+        <div class="border-2 border-[#0A0A0A] p-8">
+          <h2 class="text-2xl font-bold text-[#0A0A0A] mb-6">Live Stats</h2>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="flex items-baseline gap-3">
+              <div id="kpiCroutons" class="text-4xl font-bold text-[#25D366]">0</div>
+              <div class="text-sm text-[#6B6B6B] font-mono">croutons</div>
             </div>
-          </div>
-          <div class="border-2 border-[#0A0A0A] p-8 hover:bg-[#F8F8F8] transition-colors duration-200">
-            <div class="space-y-2">
-              <div class="text-sm font-mono text-[#6B6B6B] uppercase tracking-wider">
-                Triples
-              </div>
-              <div id="kpi-triples" class="text-4xl font-bold text-[#0A0A0A]">–</div>
+            <div class="flex items-baseline gap-3">
+              <div id="kpiTriples" class="text-4xl font-bold text-[#25D366]">0</div>
+              <div class="text-sm text-[#6B6B6B] font-mono">triples</div>
             </div>
+            <div class="text-sm text-[#6B6B6B] font-mono">Updated: <span id="statsTime">never</span></div>
+            <div><button id="btnRefreshStats" class="px-6 py-2 bg-[#0A0A0A] text-white font-medium hover:bg-[#00C2FF] transition-colors duration-200 rounded-lg cursor-pointer">Refresh</button></div>
           </div>
-          <div class="border-2 border-[#0A0A0A] p-8 hover:bg-[#F8F8F8] transition-colors duration-200">
-            <div class="space-y-2">
-              <div class="text-sm font-mono text-[#6B6B6B] uppercase tracking-wider">
-                Server Time
-              </div>
-              <div id="kpi-time" class="text-2xl font-bold text-[#0A0A0A]">–</div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+        <div class="border-2 border-[#0A0A0A] p-8">
+          <h2 class="text-2xl font-bold text-[#0A0A0A] mb-6">Search Croutons</h2>
+          <form id="formCr" class="flex gap-3 flex-wrap items-end mb-4" onsubmit="return false;">
+            <div>
+              <label class="text-xs font-mono text-[#6B6B6B] block mb-1">Text</label>
+              <input id="crText" placeholder="text contains" class="border-2 border-[#0A0A0A] rounded-lg px-3 py-2 min-w-[140px]" />
             </div>
-          </div>
-        </div>
-      </section>
-
-      <section class="border-2 border-[#0A0A0A] p-8 mb-8">
-        <h2 class="text-2xl font-bold text-[#0A0A0A] mb-6">Ingestion Monitor</h2>
-        <div class="flex gap-3 flex-wrap items-center">
-          <div>
-            <label class="text-xs font-mono text-[#6B6B6B] block mb-1">Window (minutes)</label>
-            <input id="ing-minutes" type="number" min="1" max="1440" value="60" class="border-2 border-[#0A0A0A] rounded-lg px-3 py-2 min-w-[200px]" />
-          </div>
-          <div>
-            <label class="text-xs font-mono text-[#6B6B6B] block mb-1">Limit</label>
-            <input id="ing-limit" type="number" min="1" max="500" value="50" class="border-2 border-[#0A0A0A] rounded-lg px-3 py-2 min-w-[200px]" />
-          </div>
-          <div class="self-end"><button id="ing-run" class="px-6 py-2 bg-[#0A0A0A] text-white font-medium hover:bg-[#00C2FF] transition-colors duration-200 rounded-lg cursor-pointer">Run</button></div>
-        </div>
-        <div id="ing-results" class="mt-3"></div>
-      </section>
-
-      <section class="border-2 border-[#0A0A0A] p-8 mb-8">
-        <h2 class="text-2xl font-bold text-[#0A0A0A] mb-6">Search Croutons</h2>
-        <div class="flex gap-3 flex-wrap items-center">
-          <div>
-            <label class="text-xs font-mono text-[#6B6B6B] block mb-1">Text</label>
-            <input id="c-text" type="text" placeholder="contains…" class="border-2 border-[#0A0A0A] rounded-lg px-3 py-2 min-w-[200px]" />
-          </div>
-          <div>
-            <label class="text-xs font-mono text-[#6B6B6B] block mb-1">Source URL</label>
-            <input id="c-url" type="text" placeholder="contains…" class="border-2 border-[#0A0A0A] rounded-lg px-3 py-2 min-w-[200px]" />
-          </div>
-          <div>
-            <label class="text-xs font-mono text-[#6B6B6B] block mb-1">Limit</label>
-            <input id="c-limit" type="number" min="1" max="200" value="50" class="border-2 border-[#0A0A0A] rounded-lg px-3 py-2 min-w-[200px]" />
-          </div>
-          <div>
-            <label class="text-xs font-mono text-[#6B6B6B] block mb-1">&nbsp;</label>
-            <label class="flex items-center gap-2"><input id="c-newest" type="checkbox" checked class="w-4 h-4" /> <span class="text-sm text-[#0A0A0A]">Newest first</span></label>
-          </div>
-          <div class="self-end"><button id="c-run" class="px-6 py-2 bg-[#0A0A0A] text-white font-medium hover:bg-[#00C2FF] transition-colors duration-200 rounded-lg cursor-pointer">Search</button></div>
-        </div>
-        <div id="c-results" class="mt-3"></div>
-      </section>
-
-      <section class="border-2 border-[#0A0A0A] p-8 mb-8">
-        <h2 class="text-2xl font-bold text-[#0A0A0A] mb-6">Search Triples</h2>
-        <div class="flex gap-3 flex-wrap items-center">
-          <div>
-            <label class="text-xs font-mono text-[#6B6B6B] block mb-1">Subject</label>
-            <input id="t-subj" type="text" placeholder="contains…" class="border-2 border-[#0A0A0A] rounded-lg px-3 py-2 min-w-[200px]" />
-          </div>
-          <div>
-            <label class="text-xs font-mono text-[#6B6B6B] block mb-1">Predicate</label>
-            <input id="t-pred" type="text" placeholder="contains…" class="border-2 border-[#0A0A0A] rounded-lg px-3 py-2 min-w-[200px]" />
-          </div>
-          <div>
-            <label class="text-xs font-mono text-[#6B6B6B] block mb-1">Object</label>
-            <input id="t-obj" type="text" placeholder="contains…" class="border-2 border-[#0A0A0A] rounded-lg px-3 py-2 min-w-[200px]" />
-          </div>
-          <div>
-            <label class="text-xs font-mono text-[#6B6B6B] block mb-1">Limit</label>
-            <input id="t-limit" type="number" min="1" max="200" value="50" class="border-2 border-[#0A0A0A] rounded-lg px-3 py-2 min-w-[200px]" />
-          </div>
-          <div>
-            <label class="text-xs font-mono text-[#6B6B6B] block mb-1">&nbsp;</label>
-            <label class="flex items-center gap-2"><input id="t-newest" type="checkbox" checked class="w-4 h-4" /> <span class="text-sm text-[#0A0A0A]">Newest first</span></label>
-          </div>
-          <div class="self-end"><button id="t-run" class="px-6 py-2 bg-[#0A0A0A] text-white font-medium hover:bg-[#00C2FF] transition-colors duration-200 rounded-lg cursor-pointer">Search</button></div>
-        </div>
-        <div id="t-results" class="mt-3"></div>
-      </section>
-
-      <section class="border-2 border-[#0A0A0A] p-8 mb-8">
-        <h2 class="text-2xl font-bold text-[#0A0A0A] mb-6">HMAC Validator</h2>
-        <div class="flex gap-3 flex-wrap items-start">
-          <div class="flex-1 min-w-[280px]">
-            <label class="text-xs font-mono text-[#6B6B6B] block mb-1">Payload (raw)</label>
-            <textarea id="hv-payload" rows="5" class="w-full border-2 border-[#0A0A0A] rounded-lg px-3 py-2" placeholder='{"crouton_id":"t1","source_url":"https://ex.com","text":"hello"}'></textarea>
-          </div>
-          <div class="min-w-[220px]">
-            <label class="text-xs font-mono text-[#6B6B6B] block mb-1">Computed Signature</label>
-            <input id="hv-sig" type="text" class="w-full border-2 border-[#0A0A0A] rounded-lg px-3 py-2" readonly />
-            <div class="flex gap-2 mt-2">
-              <button id="hv-compute" class="px-6 py-2 bg-[#0A0A0A] text-white font-medium hover:bg-[#00C2FF] transition-colors duration-200 rounded-lg cursor-pointer">Compute</button>
-              <button id="hv-echo" class="px-6 py-2 border-2 border-[#0A0A0A] text-[#0A0A0A] font-medium hover:bg-[#0A0A0A] hover:text-white transition-colors duration-200 rounded-lg cursor-pointer">Compare with /diag/echo</button>
+            <div>
+              <label class="text-xs font-mono text-[#6B6B6B] block mb-1">Source URL</label>
+              <input id="crUrl" placeholder="source url contains" class="border-2 border-[#0A0A0A] rounded-lg px-3 py-2 min-w-[140px]" />
             </div>
-            <small class="text-sm text-[#6B6B6B] block mt-2">Sends X-Signature to <code class="bg-[#F8F8F8] px-1 py-0.5 rounded">/diag/echo</code> and checks equality.</small>
+            <div>
+              <label class="text-xs font-mono text-[#6B6B6B] block mb-1">Order</label>
+              <select id="crNewest" class="border-2 border-[#0A0A0A] rounded-lg px-3 py-2 min-w-[140px] bg-white">
+                <option value="1" selected>Newest first</option>
+                <option value="0">Oldest first</option>
+              </select>
+            </div>
+            <div>
+              <label class="text-xs font-mono text-[#6B6B6B] block mb-1">Limit</label>
+              <input id="crLimit" type="number" min="1" max="200" value="50" class="border-2 border-[#0A0A0A] rounded-lg px-3 py-2 min-w-[140px]" />
+            </div>
+            <div><button id="btnCr" class="px-6 py-2 bg-[#0A0A0A] text-white font-medium hover:bg-[#00C2FF] transition-colors duration-200 rounded-lg cursor-pointer">Search</button></div>
+          </form>
+          <div class="overflow-auto border-2 border-[#0A0A0A] rounded-lg mt-3">
+            <table id="tblCr" class="w-full border-collapse text-sm min-w-[720px]">
+              <thead>
+                <tr>
+                  <th class="border-b-2 border-[#0A0A0A] p-3 text-left font-bold text-[#0A0A0A] sticky top-0 bg-white">crouton_id</th>
+                  <th class="border-b-2 border-[#0A0A0A] p-3 text-left font-bold text-[#0A0A0A] sticky top-0 bg-white">source_url</th>
+                  <th class="border-b-2 border-[#0A0A0A] p-3 text-left font-bold text-[#0A0A0A] sticky top-0 bg-white">text</th>
+                  <th class="border-b-2 border-[#0A0A0A] p-3 text-left font-bold text-[#0A0A0A] sticky top-0 bg-white">triple</th>
+                  <th class="border-b-2 border-[#0A0A0A] p-3 text-left font-bold text-[#0A0A0A] sticky top-0 bg-white">confidence</th>
+                  <th class="border-b-2 border-[#0A0A0A] p-3 text-left font-bold text-[#0A0A0A] sticky top-0 bg-white">verified_at</th>
+                  <th class="border-b-2 border-[#0A0A0A] p-3 text-left font-bold text-[#0A0A0A] sticky top-0 bg-white">created_at</th>
+                </tr>
+              </thead>
+              <tbody><tr><td colspan="7" class="text-[#6B6B6B] p-3">No results</td></tr></tbody>
+            </table>
+          </div>
+          <div class="text-sm text-[#6B6B6B] font-mono mt-2" id="crMeta"></div>
+        </div>
+
+        <div class="border-2 border-[#0A0A0A] p-8">
+          <h2 class="text-2xl font-bold text-[#0A0A0A] mb-6">Search Triples</h2>
+          <form id="formTr" class="flex gap-3 flex-wrap items-end mb-4" onsubmit="return false;">
+            <div>
+              <label class="text-xs font-mono text-[#6B6B6B] block mb-1">Subject</label>
+              <input id="trSubj" placeholder="subject contains" class="border-2 border-[#0A0A0A] rounded-lg px-3 py-2 min-w-[140px]" />
+            </div>
+            <div>
+              <label class="text-xs font-mono text-[#6B6B6B] block mb-1">Predicate</label>
+              <input id="trPred" placeholder="predicate contains" class="border-2 border-[#0A0A0A] rounded-lg px-3 py-2 min-w-[140px]" />
+            </div>
+            <div>
+              <label class="text-xs font-mono text-[#6B6B6B] block mb-1">Object</label>
+              <input id="trObj" placeholder="object contains" class="border-2 border-[#0A0A0A] rounded-lg px-3 py-2 min-w-[140px]" />
+            </div>
+            <div>
+              <label class="text-xs font-mono text-[#6B6B6B] block mb-1">Order</label>
+              <select id="trNewest" class="border-2 border-[#0A0A0A] rounded-lg px-3 py-2 min-w-[140px] bg-white">
+                <option value="1" selected>Newest first</option>
+                <option value="0">Oldest first</option>
+              </select>
+            </div>
+            <div>
+              <label class="text-xs font-mono text-[#6B6B6B] block mb-1">Limit</label>
+              <input id="trLimit" type="number" min="1" max="200" value="50" class="border-2 border-[#0A0A0A] rounded-lg px-3 py-2 min-w-[140px]" />
+            </div>
+            <div><button id="btnTr" class="px-6 py-2 bg-[#0A0A0A] text-white font-medium hover:bg-[#00C2FF] transition-colors duration-200 rounded-lg cursor-pointer">Search</button></div>
+          </form>
+          <div class="overflow-auto border-2 border-[#0A0A0A] rounded-lg mt-3">
+            <table id="tblTr" class="w-full border-collapse text-sm min-w-[720px]">
+              <thead>
+                <tr>
+                  <th class="border-b-2 border-[#0A0A0A] p-3 text-left font-bold text-[#0A0A0A] sticky top-0 bg-white">subject</th>
+                  <th class="border-b-2 border-[#0A0A0A] p-3 text-left font-bold text-[#0A0A0A] sticky top-0 bg-white">predicate</th>
+                  <th class="border-b-2 border-[#0A0A0A] p-3 text-left font-bold text-[#0A0A0A] sticky top-0 bg-white">object</th>
+                  <th class="border-b-2 border-[#0A0A0A] p-3 text-left font-bold text-[#0A0A0A] sticky top-0 bg-white">evidence_crouton_id</th>
+                  <th class="border-b-2 border-[#0A0A0A] p-3 text-left font-bold text-[#0A0A0A] sticky top-0 bg-white">created_at</th>
+                </tr>
+              </thead>
+              <tbody><tr><td colspan="5" class="text-[#6B6B6B] p-3">No results</td></tr></tbody>
+            </table>
+          </div>
+          <div class="text-sm text-[#6B6B6B] font-mono mt-2" id="trMeta"></div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+        <div class="border-2 border-[#0A0A0A] p-8">
+          <h2 class="text-2xl font-bold text-[#0A0A0A] mb-6">Recent Ingestion</h2>
+          <form id="formIngest" class="flex gap-3 flex-wrap items-end mb-4" onsubmit="return false;">
+            <div>
+              <label class="text-xs font-mono text-[#6B6B6B] block mb-1">Minutes</label>
+              <input id="ingMin" type="number" min="1" max="1440" value="60" class="border-2 border-[#0A0A0A] rounded-lg px-3 py-2 min-w-[140px]" />
+            </div>
+            <div>
+              <label class="text-xs font-mono text-[#6B6B6B] block mb-1">Limit</label>
+              <input id="ingLimit" type="number" min="1" max="500" value="50" class="border-2 border-[#0A0A0A] rounded-lg px-3 py-2 min-w-[140px]" />
+            </div>
+            <div><button id="btnIngest" class="px-6 py-2 bg-[#0A0A0A] text-white font-medium hover:bg-[#00C2FF] transition-colors duration-200 rounded-lg cursor-pointer">Load</button></div>
+          </form>
+          <div class="overflow-auto border-2 border-[#0A0A0A] rounded-lg mt-3">
+            <table id="tblIngest" class="w-full border-collapse text-sm min-w-[720px]">
+              <thead>
+                <tr>
+                  <th class="border-b-2 border-[#0A0A0A] p-3 text-left font-bold text-[#0A0A0A] sticky top-0 bg-white">crouton_id</th>
+                  <th class="border-b-2 border-[#0A0A0A] p-3 text-left font-bold text-[#0A0A0A] sticky top-0 bg-white">source_url</th>
+                  <th class="border-b-2 border-[#0A0A0A] p-3 text-left font-bold text-[#0A0A0A] sticky top-0 bg-white">text</th>
+                  <th class="border-b-2 border-[#0A0A0A] p-3 text-left font-bold text-[#0A0A0A] sticky top-0 bg-white">created_at</th>
+                </tr>
+              </thead>
+              <tbody><tr><td colspan="4" class="text-[#6B6B6B] p-3">No data</td></tr></tbody>
+            </table>
+          </div>
+          <div class="text-sm text-[#6B6B6B] font-mono mt-2" id="ingMeta"></div>
+        </div>
+
+        <div class="border-2 border-[#0A0A0A] p-8">
+          <h2 class="text-2xl font-bold text-[#0A0A0A] mb-6">Signature Probe</h2>
+          <div class="text-sm text-[#6B6B6B] mb-4" id="probeInfo">Use to test client HMAC flow.</div>
+          <div class="flex gap-3 flex-wrap items-center mb-4">
+            <button id="btnPing" class="px-6 py-2 bg-[#0A0A0A] text-white font-medium hover:bg-[#00C2FF] transition-colors duration-200 rounded-lg cursor-pointer">Fetch /diag/ping</button>
+            <button id="btnEcho" disabled class="px-6 py-2 bg-[#6B6B6B] text-white font-medium cursor-not-allowed rounded-lg opacity-60" style="transition: none;">Send /diag/echo</button>
+          </div>
+          <div class="mb-4">
+            <div class="text-sm text-[#6B6B6B] font-mono mb-2">Ping response</div>
+            <pre id="pingOut" class="bg-[#F8F8F8] border-2 border-[#0A0A0A] p-3 rounded-lg overflow-auto text-sm max-h-[180px] whitespace-pre-wrap">(none)</pre>
+          </div>
+          <div>
+            <div class="text-sm text-[#6B6B6B] font-mono mb-2">Echo response</div>
+            <pre id="echoOut" class="bg-[#F8F8F8] border-2 border-[#0A0A0A] p-3 rounded-lg overflow-auto text-sm max-h-[180px] whitespace-pre-wrap">(none)</pre>
           </div>
         </div>
-        <div id="hv-result" class="mt-3"></div>
-      </section>
 
-      <section class="border-2 border-[#0A0A0A] p-8 mb-8">
-        <h2 class="text-2xl font-bold text-[#0A0A0A] mb-6">Raw Feeds</h2>
-        <div class="flex gap-3 flex-wrap items-center">
-          <button id="show-croutons" class="px-6 py-2 bg-[#0A0A0A] text-white font-medium hover:bg-[#00C2FF] transition-colors duration-200 rounded-lg cursor-pointer">GET /feeds/croutons.ndjson</button>
-          <button id="show-graph" class="px-6 py-2 bg-[#0A0A0A] text-white font-medium hover:bg-[#00C2FF] transition-colors duration-200 rounded-lg cursor-pointer">GET /feeds/graph.json</button>
+        <div class="border-2 border-[#0A0A0A] p-8">
+          <h2 class="text-2xl font-bold text-[#0A0A0A] mb-6">HMAC Upload Test</h2>
+          <div>
+            <input type="file" id="fileNDJSON" accept=".ndjson,.txt,application/x-ndjson" class="border-2 border-[#0A0A0A] rounded-lg px-3 py-2 w-full mb-2" />
+            <div class="mt-2">
+              <input type="text" id="hmacKey" placeholder="HMAC Key (optional)" class="border-2 border-[#0A0A0A] rounded-lg px-3 py-2 w-full" />
+            </div>
+            <button id="btnUpload" class="mt-2 px-6 py-2 bg-[#0A0A0A] text-white font-medium hover:bg-[#00C2FF] transition-colors duration-200 rounded-lg cursor-pointer">Upload to /import</button>
+            <pre id="uploadOut" class="mt-3 bg-[#F8F8F8] border-2 border-[#0A0A0A] p-3 rounded-lg overflow-auto text-sm max-h-[160px] whitespace-pre-wrap">(none)</pre>
+          </div>
         </div>
-        <pre id="raw-output" class="mt-3 bg-[#0A0A0A] text-white p-3 rounded-lg overflow-auto whitespace-pre-wrap"></pre>
-      </section>
+
+      <footer class="text-sm text-[#6B6B6B] font-mono text-center mt-8">
+        Built for croutons ingestion and verification. Feeds are cache friendly. Admin pages are no cache.
+      </footer>
     </div>
   </section>
 
   <script>
-    async function loadStats() {
-      const r = await fetch("/diag/stats");
-      const j = await r.json();
-      document.getElementById("kpi-croutons").textContent = j.counts.croutons;
-      document.getElementById("kpi-triples").textContent  = j.counts.triples;
-      document.getElementById("kpi-time").textContent     = j.time;
+    const $ = (q) => document.querySelector(q);
+    const enc = encodeURIComponent;
+
+    async function jsonGet(url){
+      const r = await fetch(url, { headers: { "Accept":"application/json" }});
+      if(!r.ok) throw new Error(r.status + " " + r.statusText);
+      return r.json();
     }
 
-    function table(headers, rows) {
-      const thead = "<tr>" + headers.map(h => "<th class='border-b-2 border-[#0A0A0A] p-2 text-left font-bold text-[#0A0A0A]'>" + h + "</th>").join("") + "</tr>";
-      const body = rows.map(r => "<tr class='hover:bg-[#F8F8F8] transition-colors duration-200'>" + r.map(c => "<td class='border-b border-[#0A0A0A]/20 p-2 text-left text-[#0A0A0A]'>" + (c == null ? "" : c) + "</td>").join("") + "</tr>").join("");
-      return "<table class='w-full border-collapse text-sm mt-3'><thead>" + thead + "</thead><tbody>" + body + "</tbody></table>";
+    function setTable(bodySel, rows, build) {
+      const tbody = $(bodySel);
+      if (!rows || rows.length === 0) {
+        tbody.innerHTML = `<tr><td class="text-[#6B6B6B] p-3" colspan="99">No results</td></tr>`;
+        return;
+      }
+      const out = [];
+      for (const row of rows) out.push("<tr class='hover:bg-[#F8F8F8] transition-colors duration-200'>" + build(row) + "</tr>");
+      tbody.innerHTML = out.join("");
     }
 
-    async function runIngestion() {
-      const minutes = document.getElementById("ing-minutes").value || "60";
-      const limit = document.getElementById("ing-limit").value || "50";
-      const r = await fetch(`/admin/ingestion/recent?minutes=${encodeURIComponent(minutes)}&limit=${encodeURIComponent(limit)}`);
-      const j = await r.json();
-      const rows = (j.items || []).map(x => [x.crouton_id || "", x.source_url || "", x.text || "", x.created_at || ""]);
-      document.getElementById("ing-results").innerHTML =
-        `<div class="text-sm text-[#6B6B6B] font-mono mb-2">Window: ${j.window_minutes}m · Count: ${j.count} · Now: ${j.now}</div>` +
-        table(["crouton_id","source_url","text","created_at"], rows);
+    function td(html){ return "<td class='border-b border-[#0A0A0A]/20 p-3 text-left text-[#0A0A0A]'>"+html+"</td>"; }
+
+    // Stats
+    async function refreshStats() {
+      try {
+        const j = await jsonGet("/diag/stats");
+        $("#kpiCroutons").textContent = j.counts?.croutons ?? 0;
+        $("#kpiTriples").textContent = j.counts?.triples ?? 0;
+        $("#statsTime").textContent = new Date(j.time || Date.now()).toLocaleString();
+      } catch (e) {
+        $("#statsTime").textContent = "error";
+        console.error(e);
+      }
+    }
+    $("#btnRefreshStats").addEventListener("click", refreshStats);
+    refreshStats();
+
+    // Search Croutons
+    async function searchCroutons() {
+      const t = $("#crText").value.trim();
+      const u = $("#crUrl").value.trim();
+      const newest = $("#crNewest").value;
+      const limit = $("#crLimit").value;
+      const qs = [
+        t ? "text=" + enc(t) : "",
+        u ? "source_url=" + enc(u) : "",
+        "limit=" + enc(limit),
+        "newest=" + enc(newest)
+      ].filter(Boolean).join("&");
+      $("#btnCr").disabled = true;
+      $("#btnCr").className = "px-6 py-2 bg-[#6B6B6B] text-white font-medium cursor-not-allowed rounded-lg opacity-60";
+      try {
+        const j = await jsonGet("/admin/search/croutons?" + qs);
+        $("#crMeta").textContent = "Count: " + (j.count ?? 0);
+        setTable("#tblCr tbody", j.items || [], (r) => {
+          const triple = r.triple ? encHtml(JSON.stringify(r.triple)) : "";
+          return [
+            td(encHtml(r.crouton_id)),
+            td(linkify(encHtml(r.source_url))),
+            td(encHtml(r.text)),
+            td("<code class='bg-[#F8F8F8] px-1 py-0.5 rounded'>"+triple+"</code>"),
+            td(numOrBlank(r.confidence)),
+            td(encHtml(r.verified_at)),
+            td(encHtml(r.created_at))
+          ].join("");
+        });
+      } catch (e) {
+        $("#crMeta").textContent = "Error: " + e.message;
+        setTable("#tblCr tbody", [], ()=>"");
+      } finally {
+        $("#btnCr").disabled = false;
+        $("#btnCr").className = "px-6 py-2 bg-[#0A0A0A] text-white font-medium hover:bg-[#00C2FF] transition-colors duration-200 rounded-lg cursor-pointer";
+      }
+    }
+    $("#btnCr").addEventListener("click", searchCroutons);
+
+    // Search Triples
+    async function searchTriples() {
+      const subj = $("#trSubj").value.trim();
+      const pred = $("#trPred").value.trim();
+      const obj  = $("#trObj").value.trim();
+      const newest = $("#trNewest").value;
+      const limit = $("#trLimit").value;
+      const qs = [
+        subj ? "subject=" + enc(subj) : "",
+        pred ? "predicate=" + enc(pred) : "",
+        obj  ? "object=" + enc(obj) : "",
+        "limit=" + enc(limit),
+        "newest=" + enc(newest)
+      ].filter(Boolean).join("&");
+      $("#btnTr").disabled = true;
+      $("#btnTr").className = "px-6 py-2 bg-[#6B6B6B] text-white font-medium cursor-not-allowed rounded-lg opacity-60";
+      try {
+        const j = await jsonGet("/admin/search/triples?" + qs);
+        $("#trMeta").textContent = "Count: " + (j.count ?? 0);
+        setTable("#tblTr tbody", j.items || [], (r) => {
+          return [
+            td(encHtml(r.subject)),
+            td(encHtml(r.predicate)),
+            td(encHtml(r.object)),
+            td(encHtml(r.evidence_crouton_id)),
+            td(encHtml(r.created_at))
+          ].join("");
+        });
+      } catch (e) {
+        $("#trMeta").textContent = "Error: " + e.message;
+        setTable("#tblTr tbody", [], ()=>"");
+      } finally {
+        $("#btnTr").disabled = false;
+        $("#btnTr").className = "px-6 py-2 bg-[#0A0A0A] text-white font-medium hover:bg-[#00C2FF] transition-colors duration-200 rounded-lg cursor-pointer";
+      }
+    }
+    $("#btnTr").addEventListener("click", searchTriples);
+
+    // Recent ingestion
+    async function loadRecent() {
+      const m = parseInt($("#ingMin").value || "60", 10);
+      const l = parseInt($("#ingLimit").value || "50", 10);
+      $("#btnIngest").disabled = true;
+      $("#btnIngest").className = "px-6 py-2 bg-[#6B6B6B] text-white font-medium cursor-not-allowed rounded-lg opacity-60";
+      try {
+        const j = await jsonGet(`/admin/ingestion/recent?minutes=${enc(m)}&limit=${enc(l)}`);
+        $("#ingMeta").textContent = `Window: ${j.window_minutes} minutes — Count: ${j.count} — Now: ${new Date(j.now).toLocaleString()}`;
+        setTable("#tblIngest tbody", j.items || [], (r) => {
+          return [
+            td(encHtml(r.crouton_id)),
+            td(linkify(encHtml(r.source_url))),
+            td(encHtml(r.text)),
+            td(encHtml(r.created_at))
+          ].join("");
+        });
+      } catch (e) {
+        $("#ingMeta").textContent = "Error: " + e.message;
+        setTable("#tblIngest tbody", [], ()=>"");
+      } finally {
+        $("#btnIngest").disabled = false;
+        $("#btnIngest").className = "px-6 py-2 bg-[#0A0A0A] text-white font-medium hover:bg-[#00C2FF] transition-colors duration-200 rounded-lg cursor-pointer";
+      }
+    }
+    $("#btnIngest").addEventListener("click", loadRecent);
+
+    // Signature probe
+    let lastPing = null;
+    $("#btnPing").addEventListener("click", async () => {
+      $("#btnEcho").disabled = true;
+      $("#pingOut").textContent = "(loading)";
+      $("#echoOut").textContent = "(none)";
+      try {
+        const j = await jsonGet("/diag/ping");
+        lastPing = j;
+        $("#pingOut").textContent = pretty(j);
+        $("#btnEcho").disabled = false;
+        $("#btnEcho").className = "px-6 py-2 bg-[#0A0A0A] text-white font-medium hover:bg-[#00C2FF] transition-colors duration-200 rounded-lg cursor-pointer";
+      } catch (e) {
+        $("#pingOut").textContent = "Error: " + e.message;
+      }
+    });
+
+    $("#btnEcho").addEventListener("click", async () => {
+      if (!lastPing) return;
+      $("#echoOut").textContent = "(loading)";
+      try {
+        const payload = atob(lastPing.probe_payload_b64 || "");
+        const r = await fetch("/diag/echo", {
+          method:"POST",
+          headers: {
+            "Content-Type":"text/plain",
+            "X-Signature": lastPing.server_signature_header || ""
+          },
+          body: payload
+        });
+        const j = await r.json();
+        $("#echoOut").textContent = pretty(j);
+      } catch (e) {
+        $("#echoOut").textContent = "Error: " + e.message;
+      }
+    });
+
+    // Helpers
+    function numOrBlank(x){ return (x === 0 || x) ? String(x) : ""; }
+    function encHtml(s){
+      if (s == null) return "";
+      return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+    }
+    function linkify(s){
+      try {
+        const u = new URL(s);
+        const label = encHtml(s.length > 64 ? (s.slice(0,61) + "...") : s);
+        return `<a href="${encHtml(u.href)}" target="_blank" rel="noopener" class="text-[#00C2FF] hover:underline">${label}</a>`;
+      } catch {
+        return encHtml(s);
+      }
+    }
+    function pretty(j){ try { return JSON.stringify(j, null, 2); } catch { return String(j); } }
+
+    // HMAC upload test
+    $("#btnUpload").addEventListener("click", async () => {
+      const file = $("#fileNDJSON").files[0];
+      if (!file) return alert("Select a .ndjson file first.");
+      const key = $("#hmacKey").value.trim() || "dev-secret";
+      const text = await file.text();
+      const sig = await hmacHex(text, key);
+      try {
+        const r = await fetch("/import", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/x-ndjson",
+            "X-Signature": "sha256=" + sig,
+          },
+          body: text,
+        });
+        const j = await r.json();
+        $("#uploadOut").textContent = JSON.stringify(j, null, 2);
+      } catch (e) {
+        $("#uploadOut").textContent = "Error: " + e.message;
+      }
+    });
+
+    // Browser-side HMAC (matches server)
+    function hmacHex(str, key) {
+      const enc = new TextEncoder().encode;
+      return crypto.subtle
+        .importKey("raw", enc(key), { name: "HMAC", hash: "SHA-256" }, false, ["sign"])
+        .then(k => crypto.subtle.sign("HMAC", k, enc(str)))
+        .then(b => Array.from(new Uint8Array(b)).map(x => x.toString(16).padStart(2, "0")).join(""));
     }
 
-    async function runCroutonSearch() {
-      const text = document.getElementById("c-text").value || "";
-      const url  = document.getElementById("c-url").value || "";
-      const lim  = document.getElementById("c-limit").value || "50";
-      const newest = document.getElementById("c-newest").checked ? "1" : "0";
-      const qs = new URLSearchParams({ text, source_url: url, limit: lim, newest });
-      const r = await fetch("/admin/search/croutons?" + qs.toString());
-      const j = await r.json();
-      const rows = (j.items || []).map(x => [
-        x.crouton_id || "", x.source_url || "", (x.text || "").slice(0,140),
-        x.triple ? JSON.stringify(x.triple) : "", x.created_at || ""
-      ]);
-      document.getElementById("c-results").innerHTML =
-        `<div class="text-sm text-[#6B6B6B] font-mono mb-2">Results: ${j.count}</div>` +
-        table(["crouton_id","source_url","text","triple","created_at"], rows);
-    }
+    // Initial loads
+    searchCroutons();
+    searchTriples();
+    loadRecent();
 
-    async function runTripleSearch() {
-      const subj = document.getElementById("t-subj").value || "";
-      const pred = document.getElementById("t-pred").value || "";
-      const obj  = document.getElementById("t-obj").value || "";
-      const lim  = document.getElementById("t-limit").value || "50";
-      const newest = document.getElementById("t-newest").checked ? "1" : "0";
-      const qs = new URLSearchParams({ subject: subj, predicate: pred, object: obj, limit: lim, newest });
-      const r = await fetch("/admin/search/triples?" + qs.toString());
-      const j = await r.json();
-      const rows = (j.items || []).map(x => [x.subject, x.predicate, x.object, x.evidence_crouton_id || "", x.created_at || ""]);
-      document.getElementById("t-results").innerHTML =
-        `<div class="text-sm text-[#6B6B6B] font-mono mb-2">Results: ${j.count}</div>` +
-        table(["subject","predicate","object","evidence_crouton_id","created_at"], rows);
-    }
-
-    async function computeHmacLocal(payload) {
-      // Do not expose your server secret in the browser—this is just to demo the roundtrip using /diag/echo.
-      // We compute server-side signature via /diag/echo by sending the header we claim.
-      // For local display we hash payload with a fake secret to show the format; we’ll let the server confirm.
-      // Better: leave the local field blank and let /diag/echo do the comparison.
-      return ""; // Intentionally blank, we rely on /diag/echo to validate.
-    }
-
-    async function runHmacCompute() {
-      const payload = document.getElementById("hv-payload").value || "";
-      // Leave hv-sig as blank unless you know the secret locally.
-      document.getElementById("hv-sig").value = "";
-      document.getElementById("hv-result").innerHTML = `<small class="text-sm text-[#6B6B6B] block">If you want to verify, click "Compare with /diag/echo".</small>`;
-    }
-
-    async function runHmacEcho() {
-      const payload = document.getElementById("hv-payload").value || "";
-      // Ask the server what the signature should be for this exact body
-      const sigCalc = await fetch("/diag/ping").then(r=>r.json()).then(_=>null).catch(_=>null);
-      // We can’t compute locally without the secret; we’ll send a bogus header then ask the server to calc and compare.
-      // Instead, let’s fetch the server-computed signature by posting with no header and just display it.
-      const r = await fetch("/diag/echo", { method: "POST", headers: { "Content-Type": "application/x-ndjson" }, body: payload });
-      const j = await r.json();
-      const serverSig = j.server_signature || "";
-      document.getElementById("hv-sig").value = serverSig;
-      const ok = (j.received_signature === serverSig) && j.matches;
-      document.getElementById("hv-result").innerHTML =
-        `<pre class="bg-[#F8F8F8] border-2 border-[#0A0A0A] p-3 rounded-lg overflow-auto text-sm">${JSON.stringify(j, null, 2)}</pre>` +
-        (ok ? "<div class='mt-2 text-[#25D366] font-medium'>Signatures match</div>" : "<div class='mt-2 text-sm text-[#6B6B6B]'>Note: To fully validate, POST again with header <code class='bg-[#F8F8F8] px-1 py-0.5 rounded'>X-Signature: "
-        + serverSig + "</code> and the exact same payload body (including newline semantics).</div>");
-    }
-
-    async function showFeed(path) {
-      const r = await fetch(path);
-      const text = await r.text();
-      document.getElementById("raw-output").textContent = text.slice(0, 30000);
-    }
-
-    // Wire up
-    document.getElementById("ing-run").addEventListener("click", runIngestion);
-    document.getElementById("c-run").addEventListener("click", runCroutonSearch);
-    document.getElementById("t-run").addEventListener("click", runTripleSearch);
-    document.getElementById("hv-compute").addEventListener("click", runHmacCompute);
-    document.getElementById("hv-echo").addEventListener("click", runHmacEcho);
-    document.getElementById("show-croutons").addEventListener("click", () => showFeed("/feeds/croutons.ndjson?nocache=1"));
-    document.getElementById("show-graph").addEventListener("click", () => showFeed("/feeds/graph.json?nocache=1"));
-
-    loadStats();
-    runIngestion();
+    // Auto-refresh recent ingestion every 30 seconds
+    setInterval(() => {
+      loadRecent();
+    }, 30000);
   </script>
 </body>
 </html>

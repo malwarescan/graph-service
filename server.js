@@ -319,6 +319,26 @@ app.get("/admin/ingestion/recent", async function (req, res) {
 });
 
 // ===== Static Admin UI =====
+
+// Optional Basic Auth
+if (process.env.ADMIN_USER && process.env.ADMIN_PASS) {
+  app.use((req, res, next) => {
+    const auth = req.headers.authorization || "";
+    const [scheme, encoded] = auth.split(" ");
+    if (scheme === "Basic") {
+      const [u, p] = Buffer.from(encoded, "base64").toString().split(":");
+      if (u === process.env.ADMIN_USER && p === process.env.ADMIN_PASS) return next();
+    }
+    res.setHeader("WWW-Authenticate", 'Basic realm="Croutons Admin"');
+    res.status(401).send("Auth required");
+  });
+}
+
+// Explicit route for /dashboard to serve dashboard.html
+app.get("/dashboard", (req, res) => {
+  res.sendFile(require("path").join(__dirname, "public", "dashboard.html"));
+});
+
 app.use("/", express.static("public", {
   etag: true,
   setHeaders: function (res, path) {
