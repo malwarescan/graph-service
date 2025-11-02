@@ -129,6 +129,102 @@ app.get("/feeds/graph.json", async (req, res) => {
   res.send(body);
 });
 
+// ===== Admin Search =====
+app.get("/admin/search/croutons", async (req, res) => {
+  try {
+    const text = String(req.query.text || "").trim();
+    const sourceUrl = String(req.query.source_url || "").trim();
+    const limit = Math.min(parseInt(req.query.limit || "50", 10), 200);
+    const newest = String(req.query.newest || "1") === "1";
+
+    let query = "SELECT * FROM croutons WHERE 1=1";
+    const params = [];
+    let paramIdx = 1;
+
+    if (text) {
+      query += ` AND text ILIKE $${paramIdx}`;
+      params.push(`%${text}%`);
+      paramIdx++;
+    }
+    if (sourceUrl) {
+      query += ` AND source_url ILIKE $${paramIdx}`;
+      params.push(`%${sourceUrl}%`);
+      paramIdx++;
+    }
+
+    query += ` ORDER BY created_at ${newest ? "DESC" : "ASC"} LIMIT $${paramIdx}`;
+    params.push(limit);
+
+    const { rows } = await pool.query(query, params);
+    res.json({ count: rows.length, items: rows });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+app.get("/admin/search/triples", async (req, res) => {
+  try {
+    const subject = String(req.query.subject || "").trim();
+    const predicate = String(req.query.predicate || "").trim();
+    const object = String(req.query.object || "").trim();
+    const limit = Math.min(parseInt(req.query.limit || "50", 10), 200);
+    const newest = String(req.query.newest || "1") === "1";
+
+    let query = "SELECT * FROM triples WHERE 1=1";
+    const params = [];
+    let paramIdx = 1;
+
+    if (subject) {
+      query += ` AND subject ILIKE $${paramIdx}`;
+      params.push(`%${subject}%`);
+      paramIdx++;
+    }
+    if (predicate) {
+      query += ` AND predicate ILIKE $${paramIdx}`;
+      params.push(`%${predicate}%`);
+      paramIdx++;
+    }
+    if (object) {
+      query += ` AND object ILIKE $${paramIdx}`;
+      params.push(`%${object}%`);
+      paramIdx++;
+    }
+
+    query += ` ORDER BY created_at ${newest ? "DESC" : "ASC"} LIMIT $${paramIdx}`;
+    params.push(limit);
+
+    const { rows } = await pool.query(query, params);
+    res.json({ count: rows.length, items: rows });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+app.get("/admin/ingestion/recent", async (req, res) => {
+  try {
+    const minutes = Math.min(parseInt(req.query.minutes || "60", 10), 1440);
+    const limit = Math.min(parseInt(req.query.limit || "50", 10), 500);
+
+    const { rows } = await pool.query(
+      `SELECT crouton_id, source_url, text, created_at 
+       FROM croutons 
+       WHERE created_at >= NOW() - ($1 || ' minutes')::INTERVAL
+       ORDER BY created_at DESC 
+       LIMIT $2`,
+      [minutes, limit]
+    );
+
+    res.json({
+      window_minutes: minutes,
+      count: rows.length,
+      items: rows,
+      now: new Date().toISOString(),
+    });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
 // ===== Static Files =====
 app.use(
   express.static(path.join(__dirname, "public"), {

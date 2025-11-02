@@ -5,8 +5,6 @@
   <title>Graph Service Dashboard</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
-  <script src="https://d3js.org/d3.v7.min.js"></script>
   <style>
     body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
     code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
@@ -60,7 +58,7 @@
         </div>
       </div>
 
-      <!-- Tabs -->
+      <!-- Vue App Root - Wraps all tab content -->
       <div id="app">
         <div class="flex gap-2 border-b-2 border-[#0A0A0A] pb-2 mb-8">
           <button 
@@ -94,89 +92,89 @@
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
             <div class="border-2 border-[#0A0A0A] p-8">
               <h2 class="text-2xl font-bold text-[#0A0A0A] mb-6">Search Croutons</h2>
-          <form id="formCr" class="flex gap-3 flex-wrap items-end mb-4" onsubmit="return false;">
-            <div>
-              <label class="text-xs font-mono text-[#6B6B6B] block mb-1">Text</label>
-              <input id="crText" placeholder="text contains" class="border-2 border-[#0A0A0A] rounded-lg px-3 py-2 min-w-[140px]" />
+              <form id="formCr" class="flex gap-3 flex-wrap items-end mb-4" onsubmit="return false;">
+                <div>
+                  <label class="text-xs font-mono text-[#6B6B6B] block mb-1">Text</label>
+                  <input id="crText" placeholder="text contains" class="border-2 border-[#0A0A0A] rounded-lg px-3 py-2 min-w-[140px]" />
+                </div>
+                <div>
+                  <label class="text-xs font-mono text-[#6B6B6B] block mb-1">Source URL</label>
+                  <input id="crUrl" placeholder="source url contains" class="border-2 border-[#0A0A0A] rounded-lg px-3 py-2 min-w-[140px]" />
+                </div>
+                <div>
+                  <label class="text-xs font-mono text-[#6B6B6B] block mb-1">Order</label>
+                  <select id="crNewest" class="border-2 border-[#0A0A0A] rounded-lg px-3 py-2 min-w-[140px] bg-white">
+                    <option value="1" selected>Newest first</option>
+                    <option value="0">Oldest first</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="text-xs font-mono text-[#6B6B6B] block mb-1">Limit</label>
+                  <input id="crLimit" type="number" min="1" max="200" value="50" class="border-2 border-[#0A0A0A] rounded-lg px-3 py-2 min-w-[140px]" />
+                </div>
+                <div><button id="btnCr" class="px-6 py-2 bg-[#0A0A0A] text-white font-medium hover:bg-[#00C2FF] transition-colors duration-200 rounded-lg cursor-pointer">Search</button></div>
+              </form>
+              <div class="overflow-auto border-2 border-[#0A0A0A] rounded-lg mt-3">
+                <table id="tblCr" class="w-full border-collapse text-sm min-w-[720px]">
+                  <thead>
+                    <tr>
+                      <th class="border-b-2 border-[#0A0A0A] p-3 text-left font-bold text-[#0A0A0A] sticky top-0 bg-white">crouton_id</th>
+                      <th class="border-b-2 border-[#0A0A0A] p-3 text-left font-bold text-[#0A0A0A] sticky top-0 bg-white">source_url</th>
+                      <th class="border-b-2 border-[#0A0A0A] p-3 text-left font-bold text-[#0A0A0A] sticky top-0 bg-white">text</th>
+                      <th class="border-b-2 border-[#0A0A0A] p-3 text-left font-bold text-[#0A0A0A] sticky top-0 bg-white">triple</th>
+                      <th class="border-b-2 border-[#0A0A0A] p-3 text-left font-bold text-[#0A0A0A] sticky top-0 bg-white">confidence</th>
+                      <th class="border-b-2 border-[#0A0A0A] p-3 text-left font-bold text-[#0A0A0A] sticky top-0 bg-white">verified_at</th>
+                      <th class="border-b-2 border-[#0A0A0A] p-3 text-left font-bold text-[#0A0A0A] sticky top-0 bg-white">created_at</th>
+                    </tr>
+                  </thead>
+                  <tbody><tr><td colspan="7" class="text-[#6B6B6B] p-3">No results</td></tr></tbody>
+                </table>
+              </div>
+              <div class="text-sm text-[#6B6B6B] font-mono mt-2" id="crMeta"></div>
             </div>
-            <div>
-              <label class="text-xs font-mono text-[#6B6B6B] block mb-1">Source URL</label>
-              <input id="crUrl" placeholder="source url contains" class="border-2 border-[#0A0A0A] rounded-lg px-3 py-2 min-w-[140px]" />
-            </div>
-            <div>
-              <label class="text-xs font-mono text-[#6B6B6B] block mb-1">Order</label>
-              <select id="crNewest" class="border-2 border-[#0A0A0A] rounded-lg px-3 py-2 min-w-[140px] bg-white">
-                <option value="1" selected>Newest first</option>
-                <option value="0">Oldest first</option>
-              </select>
-            </div>
-            <div>
-              <label class="text-xs font-mono text-[#6B6B6B] block mb-1">Limit</label>
-              <input id="crLimit" type="number" min="1" max="200" value="50" class="border-2 border-[#0A0A0A] rounded-lg px-3 py-2 min-w-[140px]" />
-            </div>
-            <div><button id="btnCr" class="px-6 py-2 bg-[#0A0A0A] text-white font-medium hover:bg-[#00C2FF] transition-colors duration-200 rounded-lg cursor-pointer">Search</button></div>
-          </form>
-          <div class="overflow-auto border-2 border-[#0A0A0A] rounded-lg mt-3">
-            <table id="tblCr" class="w-full border-collapse text-sm min-w-[720px]">
-              <thead>
-                <tr>
-                  <th class="border-b-2 border-[#0A0A0A] p-3 text-left font-bold text-[#0A0A0A] sticky top-0 bg-white">crouton_id</th>
-                  <th class="border-b-2 border-[#0A0A0A] p-3 text-left font-bold text-[#0A0A0A] sticky top-0 bg-white">source_url</th>
-                  <th class="border-b-2 border-[#0A0A0A] p-3 text-left font-bold text-[#0A0A0A] sticky top-0 bg-white">text</th>
-                  <th class="border-b-2 border-[#0A0A0A] p-3 text-left font-bold text-[#0A0A0A] sticky top-0 bg-white">triple</th>
-                  <th class="border-b-2 border-[#0A0A0A] p-3 text-left font-bold text-[#0A0A0A] sticky top-0 bg-white">confidence</th>
-                  <th class="border-b-2 border-[#0A0A0A] p-3 text-left font-bold text-[#0A0A0A] sticky top-0 bg-white">verified_at</th>
-                  <th class="border-b-2 border-[#0A0A0A] p-3 text-left font-bold text-[#0A0A0A] sticky top-0 bg-white">created_at</th>
-                </tr>
-              </thead>
-              <tbody><tr><td colspan="7" class="text-[#6B6B6B] p-3">No results</td></tr></tbody>
-            </table>
-          </div>
-          <div class="text-sm text-[#6B6B6B] font-mono mt-2" id="crMeta"></div>
-        </div>
 
-        <div class="border-2 border-[#0A0A0A] p-8">
-          <h2 class="text-2xl font-bold text-[#0A0A0A] mb-6">Search Triples</h2>
-          <form id="formTr" class="flex gap-3 flex-wrap items-end mb-4" onsubmit="return false;">
-            <div>
-              <label class="text-xs font-mono text-[#6B6B6B] block mb-1">Subject</label>
-              <input id="trSubj" placeholder="subject contains" class="border-2 border-[#0A0A0A] rounded-lg px-3 py-2 min-w-[140px]" />
-            </div>
-            <div>
-              <label class="text-xs font-mono text-[#6B6B6B] block mb-1">Predicate</label>
-              <input id="trPred" placeholder="predicate contains" class="border-2 border-[#0A0A0A] rounded-lg px-3 py-2 min-w-[140px]" />
-            </div>
-            <div>
-              <label class="text-xs font-mono text-[#6B6B6B] block mb-1">Object</label>
-              <input id="trObj" placeholder="object contains" class="border-2 border-[#0A0A0A] rounded-lg px-3 py-2 min-w-[140px]" />
-            </div>
-            <div>
-              <label class="text-xs font-mono text-[#6B6B6B] block mb-1">Order</label>
-              <select id="trNewest" class="border-2 border-[#0A0A0A] rounded-lg px-3 py-2 min-w-[140px] bg-white">
-                <option value="1" selected>Newest first</option>
-                <option value="0">Oldest first</option>
-              </select>
-            </div>
-            <div>
-              <label class="text-xs font-mono text-[#6B6B6B] block mb-1">Limit</label>
-              <input id="trLimit" type="number" min="1" max="200" value="50" class="border-2 border-[#0A0A0A] rounded-lg px-3 py-2 min-w-[140px]" />
-            </div>
-            <div><button id="btnTr" class="px-6 py-2 bg-[#0A0A0A] text-white font-medium hover:bg-[#00C2FF] transition-colors duration-200 rounded-lg cursor-pointer">Search</button></div>
-          </form>
-          <div class="overflow-auto border-2 border-[#0A0A0A] rounded-lg mt-3">
-            <table id="tblTr" class="w-full border-collapse text-sm min-w-[720px]">
-              <thead>
-                <tr>
-                  <th class="border-b-2 border-[#0A0A0A] p-3 text-left font-bold text-[#0A0A0A] sticky top-0 bg-white">subject</th>
-                  <th class="border-b-2 border-[#0A0A0A] p-3 text-left font-bold text-[#0A0A0A] sticky top-0 bg-white">predicate</th>
-                  <th class="border-b-2 border-[#0A0A0A] p-3 text-left font-bold text-[#0A0A0A] sticky top-0 bg-white">object</th>
-                  <th class="border-b-2 border-[#0A0A0A] p-3 text-left font-bold text-[#0A0A0A] sticky top-0 bg-white">evidence_crouton_id</th>
-                  <th class="border-b-2 border-[#0A0A0A] p-3 text-left font-bold text-[#0A0A0A] sticky top-0 bg-white">created_at</th>
-                </tr>
-              </thead>
-              <tbody><tr><td colspan="5" class="text-[#6B6B6B] p-3">No results</td></tr></tbody>
-            </table>
-          </div>
+            <div class="border-2 border-[#0A0A0A] p-8">
+              <h2 class="text-2xl font-bold text-[#0A0A0A] mb-6">Search Triples</h2>
+              <form id="formTr" class="flex gap-3 flex-wrap items-end mb-4" onsubmit="return false;">
+                <div>
+                  <label class="text-xs font-mono text-[#6B6B6B] block mb-1">Subject</label>
+                  <input id="trSubj" placeholder="subject contains" class="border-2 border-[#0A0A0A] rounded-lg px-3 py-2 min-w-[140px]" />
+                </div>
+                <div>
+                  <label class="text-xs font-mono text-[#6B6B6B] block mb-1">Predicate</label>
+                  <input id="trPred" placeholder="predicate contains" class="border-2 border-[#0A0A0A] rounded-lg px-3 py-2 min-w-[140px]" />
+                </div>
+                <div>
+                  <label class="text-xs font-mono text-[#6B6B6B] block mb-1">Object</label>
+                  <input id="trObj" placeholder="object contains" class="border-2 border-[#0A0A0A] rounded-lg px-3 py-2 min-w-[140px]" />
+                </div>
+                <div>
+                  <label class="text-xs font-mono text-[#6B6B6B] block mb-1">Order</label>
+                  <select id="trNewest" class="border-2 border-[#0A0A0A] rounded-lg px-3 py-2 min-w-[140px] bg-white">
+                    <option value="1" selected>Newest first</option>
+                    <option value="0">Oldest first</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="text-xs font-mono text-[#6B6B6B] block mb-1">Limit</label>
+                  <input id="trLimit" type="number" min="1" max="200" value="50" class="border-2 border-[#0A0A0A] rounded-lg px-3 py-2 min-w-[140px]" />
+                </div>
+                <div><button id="btnTr" class="px-6 py-2 bg-[#0A0A0A] text-white font-medium hover:bg-[#00C2FF] transition-colors duration-200 rounded-lg cursor-pointer">Search</button></div>
+              </form>
+              <div class="overflow-auto border-2 border-[#0A0A0A] rounded-lg mt-3">
+                <table id="tblTr" class="w-full border-collapse text-sm min-w-[720px]">
+                  <thead>
+                    <tr>
+                      <th class="border-b-2 border-[#0A0A0A] p-3 text-left font-bold text-[#0A0A0A] sticky top-0 bg-white">subject</th>
+                      <th class="border-b-2 border-[#0A0A0A] p-3 text-left font-bold text-[#0A0A0A] sticky top-0 bg-white">predicate</th>
+                      <th class="border-b-2 border-[#0A0A0A] p-3 text-left font-bold text-[#0A0A0A] sticky top-0 bg-white">object</th>
+                      <th class="border-b-2 border-[#0A0A0A] p-3 text-left font-bold text-[#0A0A0A] sticky top-0 bg-white">evidence_crouton_id</th>
+                      <th class="border-b-2 border-[#0A0A0A] p-3 text-left font-bold text-[#0A0A0A] sticky top-0 bg-white">created_at</th>
+                    </tr>
+                  </thead>
+                  <tbody><tr><td colspan="5" class="text-[#6B6B6B] p-3">No results</td></tr></tbody>
+                </table>
+              </div>
               <div class="text-sm text-[#6B6B6B] font-mono mt-2" id="trMeta"></div>
             </div>
           </div>
@@ -187,30 +185,30 @@
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
             <div class="border-2 border-[#0A0A0A] p-8">
               <h2 class="text-2xl font-bold text-[#0A0A0A] mb-6">Recent Ingestion</h2>
-          <form id="formIngest" class="flex gap-3 flex-wrap items-end mb-4" onsubmit="return false;">
-            <div>
-              <label class="text-xs font-mono text-[#6B6B6B] block mb-1">Minutes</label>
-              <input id="ingMin" type="number" min="1" max="1440" value="60" class="border-2 border-[#0A0A0A] rounded-lg px-3 py-2 min-w-[140px]" />
-            </div>
-            <div>
-              <label class="text-xs font-mono text-[#6B6B6B] block mb-1">Limit</label>
-              <input id="ingLimit" type="number" min="1" max="500" value="50" class="border-2 border-[#0A0A0A] rounded-lg px-3 py-2 min-w-[140px]" />
-            </div>
-            <div><button id="btnIngest" class="px-6 py-2 bg-[#0A0A0A] text-white font-medium hover:bg-[#00C2FF] transition-colors duration-200 rounded-lg cursor-pointer">Load</button></div>
-          </form>
-          <div class="overflow-auto border-2 border-[#0A0A0A] rounded-lg mt-3">
-            <table id="tblIngest" class="w-full border-collapse text-sm min-w-[720px]">
-              <thead>
-                <tr>
-                  <th class="border-b-2 border-[#0A0A0A] p-3 text-left font-bold text-[#0A0A0A] sticky top-0 bg-white">crouton_id</th>
-                  <th class="border-b-2 border-[#0A0A0A] p-3 text-left font-bold text-[#0A0A0A] sticky top-0 bg-white">source_url</th>
-                  <th class="border-b-2 border-[#0A0A0A] p-3 text-left font-bold text-[#0A0A0A] sticky top-0 bg-white">text</th>
-                  <th class="border-b-2 border-[#0A0A0A] p-3 text-left font-bold text-[#0A0A0A] sticky top-0 bg-white">created_at</th>
-                </tr>
-              </thead>
-              <tbody><tr><td colspan="4" class="text-[#6B6B6B] p-3">No data</td></tr></tbody>
-            </table>
-          </div>
+              <form id="formIngest" class="flex gap-3 flex-wrap items-end mb-4" onsubmit="return false;">
+                <div>
+                  <label class="text-xs font-mono text-[#6B6B6B] block mb-1">Minutes</label>
+                  <input id="ingMin" type="number" min="1" max="1440" value="60" class="border-2 border-[#0A0A0A] rounded-lg px-3 py-2 min-w-[140px]" />
+                </div>
+                <div>
+                  <label class="text-xs font-mono text-[#6B6B6B] block mb-1">Limit</label>
+                  <input id="ingLimit" type="number" min="1" max="500" value="50" class="border-2 border-[#0A0A0A] rounded-lg px-3 py-2 min-w-[140px]" />
+                </div>
+                <div><button id="btnIngest" class="px-6 py-2 bg-[#0A0A0A] text-white font-medium hover:bg-[#00C2FF] transition-colors duration-200 rounded-lg cursor-pointer">Load</button></div>
+              </form>
+              <div class="overflow-auto border-2 border-[#0A0A0A] rounded-lg mt-3">
+                <table id="tblIngest" class="w-full border-collapse text-sm min-w-[720px]">
+                  <thead>
+                    <tr>
+                      <th class="border-b-2 border-[#0A0A0A] p-3 text-left font-bold text-[#0A0A0A] sticky top-0 bg-white">crouton_id</th>
+                      <th class="border-b-2 border-[#0A0A0A] p-3 text-left font-bold text-[#0A0A0A] sticky top-0 bg-white">source_url</th>
+                      <th class="border-b-2 border-[#0A0A0A] p-3 text-left font-bold text-[#0A0A0A] sticky top-0 bg-white">text</th>
+                      <th class="border-b-2 border-[#0A0A0A] p-3 text-left font-bold text-[#0A0A0A] sticky top-0 bg-white">created_at</th>
+                    </tr>
+                  </thead>
+                  <tbody><tr><td colspan="4" class="text-[#6B6B6B] p-3">No data</td></tr></tbody>
+                </table>
+              </div>
               <div class="text-sm text-[#6B6B6B] font-mono mt-2" id="ingMeta"></div>
             </div>
           </div>
@@ -221,18 +219,19 @@
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
             <div class="border-2 border-[#0A0A0A] p-8">
               <h2 class="text-2xl font-bold text-[#0A0A0A] mb-6">Signature Probe</h2>
-          <div class="text-sm text-[#6B6B6B] mb-4" id="probeInfo">Use to test client HMAC flow.</div>
-          <div class="flex gap-3 flex-wrap items-center mb-4">
-            <button id="btnPing" class="px-6 py-2 bg-[#0A0A0A] text-white font-medium hover:bg-[#00C2FF] transition-colors duration-200 rounded-lg cursor-pointer">Fetch /diag/ping</button>
-            <button id="btnEcho" disabled class="px-6 py-2 bg-[#6B6B6B] text-white font-medium cursor-not-allowed rounded-lg opacity-60" style="transition: none;">Send /diag/echo</button>
-          </div>
-          <div class="mb-4">
-            <div class="text-sm text-[#6B6B6B] font-mono mb-2">Ping response</div>
-            <pre id="pingOut" class="bg-[#F8F8F8] border-2 border-[#0A0A0A] p-3 rounded-lg overflow-auto text-sm max-h-[180px] whitespace-pre-wrap">(none)</pre>
-          </div>
-          <div>
-            <div class="text-sm text-[#6B6B6B] font-mono mb-2">Echo response</div>
-              <pre id="echoOut" class="bg-[#F8F8F8] border-2 border-[#0A0A0A] p-3 rounded-lg overflow-auto text-sm max-h-[180px] whitespace-pre-wrap">(none)</pre>
+              <div class="text-sm text-[#6B6B6B] mb-4" id="probeInfo">Use to test client HMAC flow.</div>
+              <div class="flex gap-3 flex-wrap items-center mb-4">
+                <button id="btnPing" class="px-6 py-2 bg-[#0A0A0A] text-white font-medium hover:bg-[#00C2FF] transition-colors duration-200 rounded-lg cursor-pointer">Fetch /diag/ping</button>
+                <button id="btnEcho" disabled class="px-6 py-2 bg-[#6B6B6B] text-white font-medium cursor-not-allowed rounded-lg opacity-60" style="transition: none;">Send /diag/echo</button>
+              </div>
+              <div class="mb-4">
+                <div class="text-sm text-[#6B6B6B] font-mono mb-2">Ping response</div>
+                <pre id="pingOut" class="bg-[#F8F8F8] border-2 border-[#0A0A0A] p-3 rounded-lg overflow-auto text-sm max-h-[180px] whitespace-pre-wrap">(none)</pre>
+              </div>
+              <div>
+                <div class="text-sm text-[#6B6B6B] font-mono mb-2">Echo response</div>
+                <pre id="echoOut" class="bg-[#F8F8F8] border-2 border-[#0A0A0A] p-3 rounded-lg overflow-auto text-sm max-h-[180px] whitespace-pre-wrap">(none)</pre>
+              </div>
             </div>
           </div>
         </div>
@@ -250,10 +249,11 @@
               </div>
             </div>
 
-            <div class="graph-container rounded-xl h-[600px]" id="graph-canvas">
-              <div v-if="graph.loading" class="absolute inset-0 flex items-center justify-center text-[#6B6B6B] font-mono">Loading graph…</div>
-              <div v-if="graph.error" class="absolute top-3 right-3 text-[#EF4444] text-sm font-mono">Error: {{ graph.error }}</div>
-            </div>
+            <!-- Graph Container with relative positioning for overlay -->
+            <div class="graph-container rounded-xl h-[600px] relative" id="graph-view" style="width:100%;height:520px;border:2px solid #0A0A0A;border-radius:0.5rem;"></div>
+            <div id="graph-empty" v-if="!graph.loading && graph.nodes.length === 0" class="mt-2 text-xs text-[#6B6B6B] font-mono">No graph data available yet.</div>
+            <div v-if="graph.loading" class="absolute inset-0 flex items-center justify-center text-[#6B6B6B] font-mono bg-white/80 rounded-xl">Loading graph…</div>
+            <div v-if="graph.error" class="absolute top-3 right-3 text-[#EF4444] text-sm font-mono bg-white/90 px-2 py-1 rounded">Error: {{ graph.error }}</div>
             <p class="mt-2 text-xs text-[#6B6B6B] font-mono">Tip: scroll to zoom, drag background to pan, drag nodes to reposition. Click a node to inspect.</p>
           </div>
 
@@ -308,14 +308,17 @@
             </div>
           </aside>
         </div>
-      </div>
 
-      <footer class="text-sm text-[#6B6B6B] font-mono text-center mt-8">
-        Built for croutons ingestion and verification. Feeds are cache friendly. Admin pages are no cache.
-      </footer>
+        <footer class="text-sm text-[#6B6B6B] font-mono text-center mt-8">
+          Built for croutons ingestion and verification. Feeds are cache friendly. Admin pages are no cache.
+        </footer>
+      </div>
     </div>
   </section>
 
+  <!-- Scripts at bottom - Vue must load before app initialization -->
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
   <script>
     const $ = (q) => document.querySelector(q);
     const enc = encodeURIComponent;
@@ -522,7 +525,7 @@
       loadRecent();
     }, 30000);
 
-    // Vue.js App for Graph View
+    // Vue.js App for Graph View - Mount after DOM is ready
     const { createApp } = Vue;
     createApp({
       data() {
@@ -543,18 +546,27 @@
       },
       watch: {
         tab(newTab) {
-          if (newTab === 'graph' && !this.graph.loaded && !this.graph.loading) {
+          if (newTab === 'graph') {
             this.loadGraph();
+            if (!this._pollTimer) {
+              this._pollTimer = setInterval(() => {
+                if (this.tab === 'graph') this.loadGraph();
+              }, 10000);
+            }
+          } else {
+            if (this._pollTimer) {
+              clearInterval(this._pollTimer);
+              this._pollTimer = null;
+            }
           }
         }
       },
       methods: {
         async loadGraph() {
-          if (this.graph.loading) return;
           this.graph.loading = true;
           this.graph.error = null;
           try {
-            const res = await fetch('/feeds/graph.json?nocache=1');
+            const res = await fetch('/feeds/graph.json?nocache=1', { cache: 'no-store' });
             if (!res.ok) throw new Error('HTTP ' + res.status);
             const payload = await res.json();
             const triples = Array.isArray(payload?.triples) ? payload.triples : [];
@@ -599,153 +611,100 @@
             this.graph.loading = false;
           }
         },
+        buildGraph(triples) {
+          const idMap = new Map();
+          const nodes = [];
+          const links = [];
+
+          function ensureNode(key) {
+            if (!idMap.has(key)) {
+              const id = idMap.size;
+              idMap.set(key, id);
+              nodes.push({ id: String(id), name: key, value: 1, symbolSize: 16 });
+            }
+            return idMap.get(key);
+          }
+
+          for (const t of triples) {
+            const s = String(t.subject || "").trim();
+            const p = String(t.predicate || "").trim();
+            const o = String(t.object || "").trim();
+            if (!s || !o) continue;
+            const sId = ensureNode(s);
+            const oId = ensureNode(o);
+            links.push({
+              source: String(sId),
+              target: String(oId),
+              label: { show: true, formatter: p },
+              lineStyle: { opacity: 0.6 }
+            });
+          }
+
+          const deg = new Array(nodes.length).fill(0);
+          for (const L of links) {
+            deg[Number(L.source)]++;
+            deg[Number(L.target)]++;
+          }
+          nodes.forEach((n, i) => n.symbolSize = Math.max(12, Math.min(36, 12 + deg[i]*2)));
+
+          return { nodes, links };
+        },
         renderGraph() {
-          d3.select('#graph-canvas').selectAll('*').remove();
-          const container = document.getElementById('graph-canvas');
-          if (!container) return;
-          const width = container.clientWidth || 800;
-          const height = 600;
-          
-          const svg = d3.select('#graph-canvas')
-            .append('svg')
-            .attr('width', width)
-            .attr('height', height);
-          
-          const zoomLayer = svg.append('g');
-          svg.call(d3.zoom().scaleExtent([0.2, 3]).on('zoom', (event) => {
-            zoomLayer.attr('transform', event.transform);
-          }));
-          
-          svg.append('defs').append('marker')
-            .attr('id', 'arrow')
-            .attr('viewBox', '0 -5 10 10')
-            .attr('refX', 18).attr('refY', 0)
-            .attr('markerWidth', 6).attr('markerHeight', 6)
-            .attr('orient', 'auto')
-            .append('path')
-            .attr('d', 'M0,-5L10,0L0,5')
-            .attr('fill', '#6B6B6B');
-          
-          const links = this.graph.links.map(d => ({ source: d.source, target: d.target, label: d.label }));
-          const nodes = this.graph.nodes.map(d => ({ id: d.id, degree: d.degree }));
-          
-          const link = zoomLayer.append('g')
-            .attr('stroke', '#6B6B6B')
-            .attr('stroke-opacity', 0.6)
-            .selectAll('line')
-            .data(links)
-            .enter().append('line')
-            .attr('stroke-width', 1.2)
-            .attr('marker-end', 'url(#arrow)');
-          
-          const linkLabel = zoomLayer.append('g')
-            .selectAll('text')
-            .data(links)
-            .enter().append('text')
-            .attr('class', 'graph-link-label')
-            .text(d => d.label || '');
-          
-          const nodeGroup = zoomLayer.append('g')
-            .selectAll('g')
-            .data(nodes)
-            .enter().append('g')
-            .call(d3.drag()
-              .on('start', dragstarted)
-              .on('drag', dragged)
-              .on('end', dragended));
-          
-          nodeGroup.append('circle')
-            .attr('r', d => 6 + Math.min(10, d.degree))
-            .attr('fill', '#00C2FF')
-            .attr('stroke', '#0A0A0A')
-            .attr('stroke-width', 1.5);
-          
-          nodeGroup.append('text')
-            .text(d => d.id.length > 20 ? d.id.slice(0, 17) + '...' : d.id)
-            .attr('x', 12)
-            .attr('y', 4)
-            .attr('font-size', '11px')
-            .attr('fill', '#0A0A0A')
-            .attr('font-family', 'ui-monospace, monospace');
-          
-          nodeGroup.on('mouseenter', (_e, d) => this.highlightNode(d.id, true));
-          nodeGroup.on('mouseleave', (_e, d) => this.highlightNode(d.id, false));
-          nodeGroup.on('click', (_e, d) => this.selectNode(d.id));
-          
-          const sim = d3.forceSimulation(nodes)
-            .force('link', d3.forceLink(links).id(d => d.id).distance(110).strength(0.6))
-            .force('charge', d3.forceManyBody().strength(-280))
-            .force('center', d3.forceCenter(width / 2, height / 2))
-            .on('tick', ticked);
-          
-          function ticked() {
-            link
-              .attr('x1', d => d.source.x)
-              .attr('y1', d => d.source.y)
-              .attr('x2', d => d.target.x)
-              .attr('y2', d => d.target.y);
-            
-            nodeGroup.attr('transform', d => `translate(${d.x},${d.y})`);
-            
-            linkLabel
-              .attr('x', d => (d.source.x + d.target.x) / 2)
-              .attr('y', d => (d.source.y + d.target.y) / 2 - 4);
+          if (!this._echartsChart) {
+            const box = document.getElementById('graph-view');
+            if (!box) return;
+            this._echartsChart = echarts.init(box, null, { renderer: 'canvas' });
+            window.addEventListener('resize', () => {
+              if (this._echartsChart) this._echartsChart.resize();
+            });
           }
+
+          const { nodes, links } = this.buildGraph(this.graph.triples);
           
-          function dragstarted(event, d) {
-            if (!event.active) sim.alphaTarget(0.3).restart();
-            d.fx = d.x; d.fy = d.y;
+          if (nodes.length === 0) {
+            this._echartsChart.clear();
+            return;
           }
-          
-          function dragged(event, d) {
-            d.fx = event.x; d.fy = event.y;
-          }
-          
-          function dragended(event, d) {
-            if (!event.active) sim.alphaTarget(0);
-            d.fx = null; d.fy = null;
-          }
-          
-          this._graphRefs = { svg, zoomLayer, nodeGroup, link, linkLabel, nodes, links, sim };
+
+          this._echartsChart.setOption({
+            tooltip: { trigger: 'item' },
+            animation: true,
+            series: [{
+              type: 'graph',
+              layout: 'force',
+              roam: true,
+              draggable: true,
+              data: nodes,
+              links: links,
+              label: { show: true, position: 'right', fontSize: 11 },
+              edgeSymbol: ['circle', 'arrow'],
+              edgeSymbolSize: [2, 8],
+              edgeLabel: {
+                show: true,
+                fontSize: 10,
+                formatter: function(p){ return p.data && p.data.label ? p.data.label.formatter : ''; }
+              },
+              force: { repulsion: 140, gravity: 0.06, edgeLength: [40, 140] },
+              lineStyle: { width: 1.2 }
+            }]
+          }, true);
+
+          this._echartsChart.off('click');
+          this._echartsChart.on('click', (params) => {
+            if (params.dataType === 'node') {
+              const nodeName = params.data.name;
+              this.selectNode(nodeName);
+            }
+          });
         },
         highlightNode(nodeId, on) {
-          if (!this._graphRefs || this.graph.selected) return;
-          const { nodeGroup, link } = this._graphRefs;
-          const neighbors = this.graph.neighborMap[nodeId] || new Set();
-          
-          nodeGroup.selectAll('circle')
-            .attr('opacity', d => on ? (d.id === nodeId || neighbors.has(d.id) ? 1 : 0.25) : 1);
-          nodeGroup.selectAll('text')
-            .attr('opacity', d => on ? (d.id === nodeId || neighbors.has(d.id) ? 1 : 0.25) : 1);
-          link
-            .attr('opacity', d => on ? (d.source.id === nodeId || d.target.id === nodeId ||
-                                       neighbors.has(d.source.id) || neighbors.has(d.target.id) ? 1 : 0.2) : 1);
+          // ECharts handles hover automatically
         },
         selectNode(nodeId) {
           this.graph.selected = this.graph.nodeIndex[nodeId] || null;
-          if (!this._graphRefs) return;
-          const { nodeGroup, link } = this._graphRefs;
-          if (!this.graph.selected) {
-            nodeGroup.selectAll('circle').attr('opacity', 1);
-            nodeGroup.selectAll('text').attr('opacity', 1);
-            link.attr('opacity', 1);
-            return;
-          }
-          const neighbors = this.graph.neighborMap[nodeId] || new Set();
-          nodeGroup.selectAll('circle')
-            .attr('opacity', d => (d.id === nodeId || neighbors.has(d.id) ? 1 : 0.15));
-          nodeGroup.selectAll('text')
-            .attr('opacity', d => (d.id === nodeId || neighbors.has(d.id) ? 1 : 0.15));
-          link.attr('opacity', d => (d.source.id === nodeId || d.target.id === nodeId ||
-                                     neighbors.has(d.source.id) || neighbors.has(d.target.id) ? 1 : 0.12));
         },
         clearSelection() {
           this.graph.selected = null;
-          if (!this._graphRefs) return;
-          const { nodeGroup, link } = this._graphRefs;
-          nodeGroup.selectAll('circle').attr('opacity', 1);
-          nodeGroup.selectAll('text').attr('opacity', 1);
-          link.attr('opacity', 1);
         },
         selectedIncidentTriples() {
           const sel = this.graph.selected?.id;
@@ -767,11 +726,18 @@
         }
       },
       mounted() {
-        const onResize = () => {
-          if (this.tab === 'graph' && this.graph.loaded) this.renderGraph();
-        };
-        window.addEventListener('resize', onResize);
-        this.$once?.('hook:beforeUnmount', () => window.removeEventListener('resize', onResize));
+        this._pollTimer = null;
+        this._echartsChart = null;
+      },
+      beforeUnmount() {
+        if (this._pollTimer) {
+          clearInterval(this._pollTimer);
+          this._pollTimer = null;
+        }
+        if (this._echartsChart) {
+          this._echartsChart.dispose();
+          this._echartsChart = null;
+        }
       }
     }).mount('#app');
   </script>
