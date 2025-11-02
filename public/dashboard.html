@@ -3,119 +3,187 @@
 <head>
   <meta charset="utf-8" />
   <title>Graph Service Dashboard</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5, user-scalable=yes" />
+  <meta name="format-detection" content="telephone=no" />
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
     code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
     .graph-container { border: 2px solid #0A0A0A; overflow: hidden; position: relative; background: #fff; border-radius: 0.5rem; }
     .graph-sidebar { border-left: 2px solid #0A0A0A; background: #F8F8F8; border-radius: 0.5rem; }
+    @media (max-width: 1024px) {
+      .graph-sidebar { border-left: none; border-top: 2px solid #0A0A0A; margin-top: 1rem; }
+    }
     .graph-badge { font-size: 11px; line-height: 1; padding: 2px 6px; border-radius: 9999px; background: #F8F8F8; color: #0A0A0A; border: 1px solid #0A0A0A; }
     .graph-pill { font-size: 12px; padding: 2px 8px; border-radius: 9999px; background: #F8F8F8; color: #0A0A0A; border: 1px solid #0A0A0A; }
     .graph-link-label { pointer-events: none; font-size: 11px; fill: #6B6B6B; }
+    /* Mobile optimizations */
+    @media (max-width: 768px) {
+      button, .btn, a[role="button"] { 
+        min-height: 44px; 
+        min-width: 44px; 
+        touch-action: manipulation; 
+        -webkit-tap-highlight-color: transparent;
+        padding: 10px 16px;
+      }
+      input, select, textarea { 
+        min-height: 44px; 
+        font-size: 16px; /* Prevents iOS zoom on focus */
+        -webkit-appearance: none;
+        appearance: none;
+        border-radius: 0.5rem;
+      }
+      .table-wrap { 
+        -webkit-overflow-scrolling: touch; 
+        overflow-x: auto;
+        margin-left: -1rem;
+        margin-right: -1rem;
+        padding-left: 1rem;
+        padding-right: 1rem;
+      }
+      table { 
+        font-size: 12px; 
+        min-width: 600px;
+      }
+      th, td { 
+        padding: 10px 8px; 
+        white-space: nowrap;
+      }
+      .graph-container { 
+        height: 400px !important; 
+        min-height: 400px;
+      }
+      #graph-view { 
+        height: 400px !important; 
+        min-height: 400px;
+      }
+      section { padding-left: 1rem; padding-right: 1rem; }
+      h1 { font-size: 1.75rem !important; }
+      h2 { font-size: 1.25rem !important; }
+    }
+    @media (max-width: 640px) {
+      .flex-wrap { flex-wrap: wrap; }
+      .pill, a.pill { 
+        font-size: 10px; 
+        padding: 4px 8px; 
+        margin: 2px;
+      }
+      .grid { gap: 1rem !important; }
+      .border-2 { border-width: 1px; }
+    }
+    @media (max-width: 480px) {
+      body { font-size: 14px; }
+      .text-sm { font-size: 12px; }
+      .text-xs { font-size: 11px; }
+      table { font-size: 11px; min-width: 500px; }
+      th, td { padding: 8px 6px; }
+      .graph-container, #graph-view { height: 350px !important; min-height: 350px; }
+    }
   </style>
 </head>
 <body class="bg-[#F8F8F8] min-h-screen">
-  <section class="w-full bg-white py-24 px-8">
+  <section class="w-full bg-white py-12 md:py-24 px-4 md:px-8">
     <div class="max-w-6xl mx-auto">
-      <div class="text-center mb-16">
-        <h1 class="text-4xl md:text-5xl font-bold text-[#0A0A0A] mb-4">
+      <div class="text-center mb-8 md:mb-16">
+        <h1 class="text-2xl md:text-4xl lg:text-5xl font-bold text-[#0A0A0A] mb-4">
           Graph Service Dashboard
         </h1>
-        <p class="text-lg text-[#6B6B6B] max-w-2xl mx-auto">
+        <p class="text-sm md:text-lg text-[#6B6B6B] max-w-2xl mx-auto px-4">
           Admin dashboard for croutons, triples, and ingestion.
         </p>
       </div>
 
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-        <div class="border-2 border-[#0A0A0A] p-8">
-          <h2 class="text-2xl font-bold text-[#0A0A0A] mb-6">Graph Service</h2>
-          <div class="text-sm text-[#6B6B6B] mb-4">Admin dashboard for croutons, triples, and ingestion.</div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 mb-6 md:mb-8">
+        <div class="border-2 border-[#0A0A0A] p-4 md:p-8">
+          <h2 class="text-xl md:text-2xl font-bold text-[#0A0A0A] mb-4 md:mb-6">Graph Service</h2>
+          <div class="text-xs md:text-sm text-[#6B6B6B] mb-4">Admin dashboard for croutons, triples, and ingestion.</div>
           <div class="flex gap-2 flex-wrap items-center">
-            <a href="/dashboard" class="inline-flex px-3 py-1 border-2 border-[#0A0A0A] text-[#0A0A0A] font-mono text-xs rounded-full hover:bg-[#0A0A0A] hover:text-white transition-colors duration-200">/dashboard</a>
-            <a href="/feeds/croutons.ndjson" target="_blank" class="inline-flex px-3 py-1 border-2 border-[#0A0A0A] text-[#0A0A0A] font-mono text-xs rounded-full hover:bg-[#0A0A0A] hover:text-white transition-colors duration-200">/feeds/croutons.ndjson</a>
-            <a href="/feeds/graph.json" target="_blank" class="inline-flex px-3 py-1 border-2 border-[#0A0A0A] text-[#0A0A0A] font-mono text-xs rounded-full hover:bg-[#0A0A0A] hover:text-white transition-colors duration-200">/feeds/graph.json</a>
-            <a href="/diag/schema" target="_blank" class="inline-flex px-3 py-1 border-2 border-[#0A0A0A] text-[#0A0A0A] font-mono text-xs rounded-full hover:bg-[#0A0A0A] hover:text-white transition-colors duration-200">/diag/schema</a>
-            <a href="/diag/stats" target="_blank" class="inline-flex px-3 py-1 border-2 border-[#0A0A0A] text-[#0A0A0A] font-mono text-xs rounded-full hover:bg-[#0A0A0A] hover:text-white transition-colors duration-200">/diag/stats</a>
-            <a href="/healthz" target="_blank" class="inline-flex px-3 py-1 border-2 border-[#0A0A0A] text-[#0A0A0A] font-mono text-xs rounded-full hover:bg-[#0A0A0A] hover:text-white transition-colors duration-200">/healthz</a>
-          </div>
-        </div>
+            <a href="/dashboard" class="inline-flex px-2 sm:px-3 py-1.5 sm:py-1 border-2 border-[#0A0A0A] text-[#0A0A0A] font-mono text-xs rounded-full hover:bg-[#0A0A0A] hover:text-white transition-colors duration-200 touch-manipulation">/dashboard</a>
+            <a href="/feeds/croutons.ndjson" target="_blank" class="inline-flex px-2 sm:px-3 py-1.5 sm:py-1 border-2 border-[#0A0A0A] text-[#0A0A0A] font-mono text-xs rounded-full hover:bg-[#0A0A0A] hover:text-white transition-colors duration-200 touch-manipulation">/feeds/croutons.ndjson</a>
+            <a href="/feeds/graph.json" target="_blank" class="inline-flex px-2 sm:px-3 py-1.5 sm:py-1 border-2 border-[#0A0A0A] text-[#0A0A0A] font-mono text-xs rounded-full hover:bg-[#0A0A0A] hover:text-white transition-colors duration-200 touch-manipulation">/feeds/graph.json</a>
+            <a href="/diag/schema" target="_blank" class="inline-flex px-2 sm:px-3 py-1.5 sm:py-1 border-2 border-[#0A0A0A] text-[#0A0A0A] font-mono text-xs rounded-full hover:bg-[#0A0A0A] hover:text-white transition-colors duration-200 touch-manipulation">/diag/schema</a>
+            <a href="/diag/stats" target="_blank" class="inline-flex px-2 sm:px-3 py-1.5 sm:py-1 border-2 border-[#0A0A0A] text-[#0A0A0A] font-mono text-xs rounded-full hover:bg-[#0A0A0A] hover:text-white transition-colors duration-200 touch-manipulation">/diag/stats</a>
+            <a href="/healthz" target="_blank" class="inline-flex px-2 sm:px-3 py-1.5 sm:py-1 border-2 border-[#0A0A0A] text-[#0A0A0A] font-mono text-xs rounded-full hover:bg-[#0A0A0A] hover:text-white transition-colors duration-200 touch-manipulation">/healthz</a>
+      </div>
+    </div>
 
-        <div class="border-2 border-[#0A0A0A] p-8">
-          <h2 class="text-2xl font-bold text-[#0A0A0A] mb-6">Live Stats</h2>
+        <div class="border-2 border-[#0A0A0A] p-4 md:p-8">
+          <h2 class="text-xl md:text-2xl font-bold text-[#0A0A0A] mb-4 md:mb-6">Live Stats</h2>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div class="flex items-baseline gap-3">
-              <div id="kpiCroutons" class="text-4xl font-bold text-[#25D366]">0</div>
-              <div class="text-sm text-[#6B6B6B] font-mono">croutons</div>
+              <div id="kpiCroutons" class="text-3xl md:text-4xl font-bold text-[#25D366]">0</div>
+              <div class="text-xs md:text-sm text-[#6B6B6B] font-mono">croutons</div>
             </div>
             <div class="flex items-baseline gap-3">
-              <div id="kpiTriples" class="text-4xl font-bold text-[#25D366]">0</div>
-              <div class="text-sm text-[#6B6B6B] font-mono">triples</div>
+              <div id="kpiTriples" class="text-3xl md:text-4xl font-bold text-[#25D366]">0</div>
+              <div class="text-xs md:text-sm text-[#6B6B6B] font-mono">triples</div>
             </div>
-            <div class="text-sm text-[#6B6B6B] font-mono">Updated: <span id="statsTime">never</span></div>
-            <div><button id="btnRefreshStats" class="px-6 py-2 bg-[#0A0A0A] text-white font-medium hover:bg-[#00C2FF] transition-colors duration-200 rounded-lg cursor-pointer">Refresh</button></div>
+            <div class="text-xs md:text-sm text-[#6B6B6B] font-mono">Updated: <span id="statsTime">never</span></div>
+            <div><button id="btnRefreshStats" class="w-full md:w-auto px-6 py-3 md:py-2 bg-[#0A0A0A] text-white font-medium hover:bg-[#00C2FF] transition-colors duration-200 rounded-lg cursor-pointer touch-manipulation">Refresh</button></div>
           </div>
-        </div>
+      </div>
       </div>
 
       <!-- Vue App Root - Wraps all tab content -->
       <div id="app">
-        <div class="flex gap-2 border-b-2 border-[#0A0A0A] pb-2 mb-8">
+        <div class="overflow-x-auto -mx-4 md:mx-0 px-4 md:px-0">
+          <div class="flex gap-2 border-b-2 border-[#0A0A0A] pb-2 mb-6 md:mb-8 min-w-max md:min-w-0">
           <button 
             @click="tab='search'" 
             :class="tab==='search' ? 'font-bold text-[#00C2FF] border-b-2 border-[#00C2FF] pb-2 -mb-[2px] px-4' : 'text-[#6B6B6B] hover:text-[#0A0A0A] px-4 transition-colors duration-200'"
-            class="font-mono text-sm uppercase tracking-wider">
+            class="font-mono text-sm uppercase tracking-wider touch-manipulation py-2">
             Search
           </button>
           <button 
             @click="tab='ingestion'" 
             :class="tab==='ingestion' ? 'font-bold text-[#00C2FF] border-b-2 border-[#00C2FF] pb-2 -mb-[2px] px-4' : 'text-[#6B6B6B] hover:text-[#0A0A0A] px-4 transition-colors duration-200'"
-            class="font-mono text-sm uppercase tracking-wider">
+            class="font-mono text-sm uppercase tracking-wider touch-manipulation py-2">
             Ingestion
           </button>
           <button 
             @click="tab='tools'" 
             :class="tab==='tools' ? 'font-bold text-[#00C2FF] border-b-2 border-[#00C2FF] pb-2 -mb-[2px] px-4' : 'text-[#6B6B6B] hover:text-[#0A0A0A] px-4 transition-colors duration-200'"
-            class="font-mono text-sm uppercase tracking-wider">
+            class="font-mono text-sm uppercase tracking-wider touch-manipulation py-2">
             Tools
           </button>
           <button 
             @click="tab='graph'" 
             :class="tab==='graph' ? 'font-bold text-[#00C2FF] border-b-2 border-[#00C2FF] pb-2 -mb-[2px] px-4' : 'text-[#6B6B6B] hover:text-[#0A0A0A] px-4 transition-colors duration-200'"
-            class="font-mono text-sm uppercase tracking-wider">
+            class="font-mono text-sm uppercase tracking-wider touch-manipulation py-2">
             Graph View
           </button>
-        </div>
+    </div>
 
         <!-- Search Tab -->
         <div v-if="tab==='search'">
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-            <div class="border-2 border-[#0A0A0A] p-8">
-              <h2 class="text-2xl font-bold text-[#0A0A0A] mb-6">Search Croutons</h2>
-              <form id="formCr" class="flex gap-3 flex-wrap items-end mb-4" onsubmit="return false;">
-                <div>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 mb-6 md:mb-8">
+            <div class="border-2 border-[#0A0A0A] p-4 md:p-8">
+              <h2 class="text-xl md:text-2xl font-bold text-[#0A0A0A] mb-4 md:mb-6">Search Croutons</h2>
+              <form id="formCr" class="flex flex-col sm:flex-row gap-3 flex-wrap items-end mb-4" onsubmit="return false;">
+      <div>
                   <label class="text-xs font-mono text-[#6B6B6B] block mb-1">Text</label>
-                  <input id="crText" placeholder="text contains" class="border-2 border-[#0A0A0A] rounded-lg px-3 py-2 min-w-[140px]" />
-                </div>
-                <div>
+                  <input id="crText" placeholder="text contains" class="border-2 border-[#0A0A0A] rounded-lg px-3 py-2.5 md:py-2 min-w-[140px] text-base md:text-sm" />
+      </div>
+      <div>
                   <label class="text-xs font-mono text-[#6B6B6B] block mb-1">Source URL</label>
-                  <input id="crUrl" placeholder="source url contains" class="border-2 border-[#0A0A0A] rounded-lg px-3 py-2 min-w-[140px]" />
-                </div>
-                <div>
+                  <input id="crUrl" placeholder="source url contains" class="border-2 border-[#0A0A0A] rounded-lg px-3 py-2.5 md:py-2 min-w-[140px] text-base md:text-sm" />
+      </div>
+      <div>
                   <label class="text-xs font-mono text-[#6B6B6B] block mb-1">Order</label>
-                  <select id="crNewest" class="border-2 border-[#0A0A0A] rounded-lg px-3 py-2 min-w-[140px] bg-white">
+                  <select id="crNewest" class="border-2 border-[#0A0A0A] rounded-lg px-3 py-2.5 md:py-2 min-w-[140px] bg-white text-base md:text-sm">
                     <option value="1" selected>Newest first</option>
                     <option value="0">Oldest first</option>
                   </select>
-                </div>
-                <div>
+      </div>
+      <div>
                   <label class="text-xs font-mono text-[#6B6B6B] block mb-1">Limit</label>
-                  <input id="crLimit" type="number" min="1" max="200" value="50" class="border-2 border-[#0A0A0A] rounded-lg px-3 py-2 min-w-[140px]" />
+                  <input id="crLimit" type="number" min="1" max="200" value="50" class="border-2 border-[#0A0A0A] rounded-lg px-3 py-2.5 md:py-2 min-w-[140px] text-base md:text-sm" />
                 </div>
-                <div><button id="btnCr" class="px-6 py-2 bg-[#0A0A0A] text-white font-medium hover:bg-[#00C2FF] transition-colors duration-200 rounded-lg cursor-pointer">Search</button></div>
+                <div class="w-full sm:w-auto"><button id="btnCr" class="w-full sm:w-auto px-6 py-3 md:py-2 bg-[#0A0A0A] text-white font-medium hover:bg-[#00C2FF] transition-colors duration-200 rounded-lg cursor-pointer touch-manipulation">Search</button></div>
               </form>
-              <div class="overflow-auto border-2 border-[#0A0A0A] rounded-lg mt-3">
-                <table id="tblCr" class="w-full border-collapse text-sm min-w-[720px]">
+              <div class="overflow-x-auto border-2 border-[#0A0A0A] rounded-lg mt-3 -mx-2 md:mx-0">
+                <div class="inline-block min-w-full">
+                <table id="tblCr" class="w-full border-collapse text-xs sm:text-sm min-w-[600px] sm:min-w-[720px]">
                   <thead>
                     <tr>
                       <th class="border-b-2 border-[#0A0A0A] p-3 text-left font-bold text-[#0A0A0A] sticky top-0 bg-white">crouton_id</th>
@@ -129,40 +197,42 @@
                   </thead>
                   <tbody><tr><td colspan="7" class="text-[#6B6B6B] p-3">No results</td></tr></tbody>
                 </table>
-              </div>
-              <div class="text-sm text-[#6B6B6B] font-mono mt-2" id="crMeta"></div>
-            </div>
+                </div>
+      </div>
+              <div class="text-xs sm:text-sm text-[#6B6B6B] font-mono mt-2" id="crMeta"></div>
+    </div>
 
-            <div class="border-2 border-[#0A0A0A] p-8">
-              <h2 class="text-2xl font-bold text-[#0A0A0A] mb-6">Search Triples</h2>
-              <form id="formTr" class="flex gap-3 flex-wrap items-end mb-4" onsubmit="return false;">
+            <div class="border-2 border-[#0A0A0A] p-4 md:p-8">
+              <h2 class="text-xl md:text-2xl font-bold text-[#0A0A0A] mb-4 md:mb-6">Search Triples</h2>
+              <form id="formTr" class="flex flex-col sm:flex-row gap-3 flex-wrap items-end mb-4" onsubmit="return false;">
                 <div>
                   <label class="text-xs font-mono text-[#6B6B6B] block mb-1">Subject</label>
-                  <input id="trSubj" placeholder="subject contains" class="border-2 border-[#0A0A0A] rounded-lg px-3 py-2 min-w-[140px]" />
+                  <input id="trSubj" placeholder="subject contains" class="border-2 border-[#0A0A0A] rounded-lg px-3 py-2.5 md:py-2 min-w-[140px] text-base md:text-sm" />
                 </div>
                 <div>
                   <label class="text-xs font-mono text-[#6B6B6B] block mb-1">Predicate</label>
-                  <input id="trPred" placeholder="predicate contains" class="border-2 border-[#0A0A0A] rounded-lg px-3 py-2 min-w-[140px]" />
-                </div>
-                <div>
+                  <input id="trPred" placeholder="predicate contains" class="border-2 border-[#0A0A0A] rounded-lg px-3 py-2.5 md:py-2 min-w-[140px] text-base md:text-sm" />
+      </div>
+      <div>
                   <label class="text-xs font-mono text-[#6B6B6B] block mb-1">Object</label>
-                  <input id="trObj" placeholder="object contains" class="border-2 border-[#0A0A0A] rounded-lg px-3 py-2 min-w-[140px]" />
-                </div>
-                <div>
+                  <input id="trObj" placeholder="object contains" class="border-2 border-[#0A0A0A] rounded-lg px-3 py-2.5 md:py-2 min-w-[140px] text-base md:text-sm" />
+      </div>
+      <div>
                   <label class="text-xs font-mono text-[#6B6B6B] block mb-1">Order</label>
-                  <select id="trNewest" class="border-2 border-[#0A0A0A] rounded-lg px-3 py-2 min-w-[140px] bg-white">
+                  <select id="trNewest" class="border-2 border-[#0A0A0A] rounded-lg px-3 py-2.5 md:py-2 min-w-[140px] bg-white text-base md:text-sm">
                     <option value="1" selected>Newest first</option>
                     <option value="0">Oldest first</option>
                   </select>
-                </div>
-                <div>
+      </div>
+      <div>
                   <label class="text-xs font-mono text-[#6B6B6B] block mb-1">Limit</label>
-                  <input id="trLimit" type="number" min="1" max="200" value="50" class="border-2 border-[#0A0A0A] rounded-lg px-3 py-2 min-w-[140px]" />
+                  <input id="trLimit" type="number" min="1" max="200" value="50" class="border-2 border-[#0A0A0A] rounded-lg px-3 py-2.5 md:py-2 min-w-[140px] text-base md:text-sm" />
                 </div>
-                <div><button id="btnTr" class="px-6 py-2 bg-[#0A0A0A] text-white font-medium hover:bg-[#00C2FF] transition-colors duration-200 rounded-lg cursor-pointer">Search</button></div>
+                <div class="w-full sm:w-auto"><button id="btnTr" class="w-full sm:w-auto px-6 py-3 md:py-2 bg-[#0A0A0A] text-white font-medium hover:bg-[#00C2FF] transition-colors duration-200 rounded-lg cursor-pointer touch-manipulation">Search</button></div>
               </form>
-              <div class="overflow-auto border-2 border-[#0A0A0A] rounded-lg mt-3">
-                <table id="tblTr" class="w-full border-collapse text-sm min-w-[720px]">
+              <div class="overflow-x-auto border-2 border-[#0A0A0A] rounded-lg mt-3 -mx-2 md:mx-0">
+                <div class="inline-block min-w-full">
+                <table id="tblTr" class="w-full border-collapse text-xs sm:text-sm min-w-[500px] sm:min-w-[720px]">
                   <thead>
                     <tr>
                       <th class="border-b-2 border-[#0A0A0A] p-3 text-left font-bold text-[#0A0A0A] sticky top-0 bg-white">subject</th>
@@ -174,30 +244,32 @@
                   </thead>
                   <tbody><tr><td colspan="5" class="text-[#6B6B6B] p-3">No results</td></tr></tbody>
                 </table>
+                </div>
               </div>
-              <div class="text-sm text-[#6B6B6B] font-mono mt-2" id="trMeta"></div>
+              <div class="text-xs sm:text-sm text-[#6B6B6B] font-mono mt-2" id="trMeta"></div>
             </div>
           </div>
         </div>
 
         <!-- Ingestion Tab -->
         <div v-if="tab==='ingestion'">
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-            <div class="border-2 border-[#0A0A0A] p-8">
-              <h2 class="text-2xl font-bold text-[#0A0A0A] mb-6">Recent Ingestion</h2>
-              <form id="formIngest" class="flex gap-3 flex-wrap items-end mb-4" onsubmit="return false;">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 mb-6 md:mb-8">
+            <div class="border-2 border-[#0A0A0A] p-4 md:p-8">
+              <h2 class="text-xl md:text-2xl font-bold text-[#0A0A0A] mb-4 md:mb-6">Recent Ingestion</h2>
+              <form id="formIngest" class="flex flex-col sm:flex-row gap-3 flex-wrap items-end mb-4" onsubmit="return false;">
                 <div>
                   <label class="text-xs font-mono text-[#6B6B6B] block mb-1">Minutes</label>
-                  <input id="ingMin" type="number" min="1" max="1440" value="60" class="border-2 border-[#0A0A0A] rounded-lg px-3 py-2 min-w-[140px]" />
-                </div>
-                <div>
+                  <input id="ingMin" type="number" min="1" max="1440" value="60" class="border-2 border-[#0A0A0A] rounded-lg px-3 py-2.5 md:py-2 min-w-[140px] text-base md:text-sm" />
+      </div>
+      <div>
                   <label class="text-xs font-mono text-[#6B6B6B] block mb-1">Limit</label>
-                  <input id="ingLimit" type="number" min="1" max="500" value="50" class="border-2 border-[#0A0A0A] rounded-lg px-3 py-2 min-w-[140px]" />
+                  <input id="ingLimit" type="number" min="1" max="500" value="50" class="border-2 border-[#0A0A0A] rounded-lg px-3 py-2.5 md:py-2 min-w-[140px] text-base md:text-sm" />
                 </div>
-                <div><button id="btnIngest" class="px-6 py-2 bg-[#0A0A0A] text-white font-medium hover:bg-[#00C2FF] transition-colors duration-200 rounded-lg cursor-pointer">Load</button></div>
+                <div class="w-full sm:w-auto"><button id="btnIngest" class="w-full sm:w-auto px-6 py-3 md:py-2 bg-[#0A0A0A] text-white font-medium hover:bg-[#00C2FF] transition-colors duration-200 rounded-lg cursor-pointer touch-manipulation">Load</button></div>
               </form>
-              <div class="overflow-auto border-2 border-[#0A0A0A] rounded-lg mt-3">
-                <table id="tblIngest" class="w-full border-collapse text-sm min-w-[720px]">
+              <div class="overflow-x-auto border-2 border-[#0A0A0A] rounded-lg mt-3 -mx-2 md:mx-0">
+                <div class="inline-block min-w-full">
+                <table id="tblIngest" class="w-full border-collapse text-xs sm:text-sm min-w-[500px] sm:min-w-[720px]">
                   <thead>
                     <tr>
                       <th class="border-b-2 border-[#0A0A0A] p-3 text-left font-bold text-[#0A0A0A] sticky top-0 bg-white">crouton_id</th>
@@ -208,27 +280,28 @@
                   </thead>
                   <tbody><tr><td colspan="4" class="text-[#6B6B6B] p-3">No data</td></tr></tbody>
                 </table>
+                </div>
               </div>
-              <div class="text-sm text-[#6B6B6B] font-mono mt-2" id="ingMeta"></div>
+              <div class="text-xs sm:text-sm text-[#6B6B6B] font-mono mt-2" id="ingMeta"></div>
             </div>
           </div>
         </div>
 
         <!-- Tools Tab -->
         <div v-if="tab==='tools'">
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-            <div class="border-2 border-[#0A0A0A] p-8">
-              <h2 class="text-2xl font-bold text-[#0A0A0A] mb-6">Signature Probe</h2>
-              <div class="text-sm text-[#6B6B6B] mb-4" id="probeInfo">Use to test client HMAC flow.</div>
-              <div class="flex gap-3 flex-wrap items-center mb-4">
-                <button id="btnPing" class="px-6 py-2 bg-[#0A0A0A] text-white font-medium hover:bg-[#00C2FF] transition-colors duration-200 rounded-lg cursor-pointer">Fetch /diag/ping</button>
-                <button id="btnEcho" disabled class="px-6 py-2 bg-[#6B6B6B] text-white font-medium cursor-not-allowed rounded-lg opacity-60" style="transition: none;">Send /diag/echo</button>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 mb-6 md:mb-8">
+            <div class="border-2 border-[#0A0A0A] p-4 md:p-8">
+              <h2 class="text-xl md:text-2xl font-bold text-[#0A0A0A] mb-4 md:mb-6">Signature Probe</h2>
+              <div class="text-xs md:text-sm text-[#6B6B6B] mb-4" id="probeInfo">Use to test client HMAC flow.</div>
+              <div class="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center mb-4">
+                <button id="btnPing" class="w-full sm:w-auto px-6 py-3 md:py-2 bg-[#0A0A0A] text-white font-medium hover:bg-[#00C2FF] transition-colors duration-200 rounded-lg cursor-pointer touch-manipulation">Fetch /diag/ping</button>
+                <button id="btnEcho" disabled class="w-full sm:w-auto px-6 py-3 md:py-2 bg-[#6B6B6B] text-white font-medium cursor-not-allowed rounded-lg opacity-60 touch-manipulation" style="transition: none;">Send /diag/echo</button>
               </div>
               <div class="mb-4">
                 <div class="text-sm text-[#6B6B6B] font-mono mb-2">Ping response</div>
                 <pre id="pingOut" class="bg-[#F8F8F8] border-2 border-[#0A0A0A] p-3 rounded-lg overflow-auto text-sm max-h-[180px] whitespace-pre-wrap">(none)</pre>
-              </div>
-              <div>
+      </div>
+      <div>
                 <div class="text-sm text-[#6B6B6B] font-mono mb-2">Echo response</div>
                 <pre id="echoOut" class="bg-[#F8F8F8] border-2 border-[#0A0A0A] p-3 rounded-lg overflow-auto text-sm max-h-[180px] whitespace-pre-wrap">(none)</pre>
               </div>
@@ -237,31 +310,31 @@
         </div>
 
         <!-- Graph View Tab -->
-        <div v-if="tab==='graph'" class="grid grid-cols-1 lg:grid-cols-12 gap-4 mb-8">
+        <div v-if="tab==='graph'" class="grid grid-cols-1 lg:grid-cols-12 gap-4 mb-6 md:mb-8">
           <!-- Canvas -->
           <div class="lg:col-span-8 xl:col-span-9">
-            <div class="flex items-center justify-between mb-3">
-              <h2 class="text-2xl font-bold text-[#0A0A0A]">Graph Visualization</h2>
-              <div class="flex items-center gap-2">
-                <span class="graph-pill">Nodes: {{ graph.nodes.length }}</span>
-                <span class="graph-pill">Links: {{ graph.links.length }}</span>
-                <button @click="refreshGraph" :disabled="graph.loading" class="px-6 py-2 bg-[#0A0A0A] text-white font-medium hover:bg-[#00C2FF] transition-colors duration-200 rounded-lg cursor-pointer disabled:bg-[#6B6B6B] disabled:opacity-60 disabled:cursor-not-allowed">Refresh</button>
+            <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-3">
+              <h2 class="text-xl md:text-2xl font-bold text-[#0A0A0A]">Graph Visualization</h2>
+              <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+                <span class="graph-pill text-xs">Nodes: {{ graph.nodes.length }}</span>
+                <span class="graph-pill text-xs">Links: {{ graph.links.length }}</span>
+                <button @click="refreshGraph" :disabled="graph.loading" class="w-full sm:w-auto px-6 py-3 md:py-2 bg-[#0A0A0A] text-white font-medium hover:bg-[#00C2FF] transition-colors duration-200 rounded-lg cursor-pointer disabled:bg-[#6B6B6B] disabled:opacity-60 disabled:cursor-not-allowed touch-manipulation">Refresh</button>
               </div>
             </div>
 
             <!-- Graph Container with relative positioning for overlay -->
-            <div class="graph-container rounded-xl h-[600px] relative" id="graph-view" style="width:100%;height:520px;border:2px solid #0A0A0A;border-radius:0.5rem;"></div>
+            <div class="graph-container rounded-xl h-[400px] md:h-[500px] lg:h-[520px] relative" id="graph-view" style="width:100%;border:2px solid #0A0A0A;border-radius:0.5rem;"></div>
             <div id="graph-empty" v-if="!graph.loading && graph.nodes.length === 0" class="mt-2 text-xs text-[#6B6B6B] font-mono">No graph data available yet.</div>
-            <div v-if="graph.loading" class="absolute inset-0 flex items-center justify-center text-[#6B6B6B] font-mono bg-white/80 rounded-xl">Loading graph…</div>
-            <div v-if="graph.error" class="absolute top-3 right-3 text-[#EF4444] text-sm font-mono bg-white/90 px-2 py-1 rounded">Error: {{ graph.error }}</div>
-            <p class="mt-2 text-xs text-[#6B6B6B] font-mono">Tip: scroll to zoom, drag background to pan, drag nodes to reposition. Click a node to inspect.</p>
+            <div v-if="graph.loading" class="absolute inset-0 flex items-center justify-center text-[#6B6B6B] text-sm md:text-base font-mono bg-white/80 rounded-xl">Loading graph…</div>
+            <div v-if="graph.error" class="absolute top-2 right-2 text-[#EF4444] text-xs md:text-sm font-mono bg-white/90 px-2 py-1 rounded">Error: {{ graph.error }}</div>
+            <p class="mt-2 text-xs text-[#6B6B6B] font-mono px-1">Tip: scroll to zoom, drag background to pan, drag nodes to reposition. Click a node to inspect.</p>
           </div>
 
           <!-- Sidebar -->
-          <aside class="lg:col-span-4 xl:col-span-3 graph-sidebar rounded-xl p-4 border-2 border-[#0A0A0A]">
-            <div class="flex items-center justify-between mb-4">
-              <h3 class="text-xl font-bold text-[#0A0A0A]">Inspector</h3>
-              <button v-if="graph.selected" @click="clearSelection" class="text-sm text-[#6B6B6B] hover:text-[#0A0A0A] transition-colors duration-200 font-mono">Clear</button>
+          <aside class="lg:col-span-4 xl:col-span-3 graph-sidebar rounded-xl p-3 md:p-4 border-2 border-[#0A0A0A]">
+            <div class="flex items-center justify-between mb-3 md:mb-4">
+              <h3 class="text-lg md:text-xl font-bold text-[#0A0A0A]">Inspector</h3>
+              <button v-if="graph.selected" @click="clearSelection" class="text-xs md:text-sm text-[#6B6B6B] hover:text-[#0A0A0A] transition-colors duration-200 font-mono px-2 py-1 touch-manipulation">Clear</button>
             </div>
 
             <div v-if="!graph.selected" class="text-sm text-[#6B6B6B] font-mono">
@@ -289,8 +362,8 @@
                     class="px-2 py-1 text-xs rounded-full bg-white border-2 border-[#0A0A0A] hover:bg-[#0A0A0A] hover:text-white transition-colors duration-200 font-mono">
                     {{ n }}
                   </button>
-                </div>
-              </div>
+      </div>
+    </div>
 
               <div>
                 <div class="text-xs font-mono text-[#6B6B6B] mb-2 uppercase tracking-wider">Incident Triples</div>
@@ -305,7 +378,7 @@
                   <div v-if="!selectedIncidentTriples().length" class="text-xs text-[#6B6B6B] font-mono">No triples found for this node.</div>
                 </div>
               </div>
-            </div>
+      </div>
           </aside>
         </div>
 
@@ -491,7 +564,7 @@
           },
           body: payload
         });
-        const j = await r.json();
+      const j = await r.json();
         $("#echoOut").textContent = pretty(j);
       } catch (e) {
         $("#echoOut").textContent = "Error: " + e.message;
