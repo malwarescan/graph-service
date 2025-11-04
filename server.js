@@ -67,6 +67,144 @@ function setNdjsonHeaders(res, noCache, body) {
 
 const ndjsonBody = express.text({ type: "*/*", limit: "5mb" });
 app.disable("x-powered-by");
+
+// ===== Satellite Ingestion API (CLI) - Must be before express.json() =====
+// POST /v1/streams/ingest
+// Accepts Bearer token auth, gzipped NDJSON from CLI
+app.post("/v1/streams/ingest", express.raw({ type: "application/x-ndjson", limit: "5mb" }), async (req, res) => {
+  try {
+    // Verify Bearer token (simple check - you can enhance this)
+    const authHeader = req.get("Authorization") || "";
+    const apiKey = authHeader.replace("Bearer ", "").trim();
+    if (!apiKey) {
+      return res.status(401).json({ ok: false, error: "Missing API key" });
+    }
+    // If API_KEYS env var is set, validate against it; otherwise allow any non-empty key
+    if (API_KEYS.length > 0 && !API_KEYS.includes(apiKey)) {
+      return res.status(401).json({ ok: false, error: "Invalid API key" });
+    }
+
+    // Get headers
+    const datasetId = req.get("X-Dataset-Id") || "default";
+    const site = req.get("X-Site") || "";
+    const contentHash = req.get("X-Content-Hash") || "";
+    const schemaVersion = req.get("X-Schema-Version") || "1";
+
+    // Handle gzip decompression
+    let body = req.body;
+    if (req.get("Content-Encoding") === "gzip") {
+      const zlib = require("zlib");
+      body = zlib.gunzipSync(body);
+    }
+    const ndjson = body.toString("utf8");
+
+    // Parse NDJSON lines
+    const lines = ndjson.split("\n").filter((line) => line.trim());
+    const records = [];
+    for (const line of lines) {
+      try {
+        records.push(JSON.parse(line));
+      } catch (e) {
+        console.warn("[ingest] Skipping invalid JSON line:", line.substring(0, 100));
+      }
+    }
+
+    if (records.length === 0) {
+      return res.status(400).json({ ok: false, error: "No valid records found" });
+    }
+
+    // Process records and insert into DB
+    let inserted = 0;
+    let triplesCreated = 0;
+
+    for (const record of records) {
+      const recordType = record["@type"] || "";
+      
+      // For now, only handle Factlet records (matching CLI format)
+      if (recordType === "Factlet") {
+        const factId = record.fact_id || record["@id"] || "";
+        const pageId = record.page_id || site;
+        const claim = record.claim || record.text || "";
+        const passageId = record.passage_id || "";
+
+        if (!factId || !claim) {
+          continue; // Skip invalid records
+        }
+
+        // Create crouton_id from fact_id
+        const croutonId = factId;
+
+        // Extract triple if available, otherwise create a simple one
+        let triple = null;
+        if (record.about || record.normalized?.about) {
+          const about = record.about || record.normalized?.about;
+          const aboutId = about["@id"] || about.id || String(about);
+          const aboutName = about.name || aboutId;
+          triple = {
+            subject: factId,
+            predicate: "about",
+            object: aboutId
+          };
+        } else if (record.provider) {
+          const provider = record.provider;
+          const providerId = provider["@id"] || provider.id || String(provider);
+          triple = {
+            subject: factId,
+            predicate: "providedBy",
+            object: providerId
+          };
+        }
+
+        // Insert crouton
+        try {
+          await pool.query(
+            `INSERT INTO croutons (crouton_id, source_url, text, corpus_id, triple, source_hash)
+             VALUES ($1, $2, $3, $4, $5, $6)
+             ON CONFLICT (crouton_id) DO UPDATE SET
+               source_url = EXCLUDED.source_url,
+               text = EXCLUDED.text,
+               triple = EXCLUDED.triple,
+               source_hash = EXCLUDED.source_hash`,
+            [croutonId, pageId, claim, datasetId, triple ? JSON.stringify(triple) : null, contentHash]
+          );
+          inserted++;
+
+          // Insert triple if available
+          if (triple) {
+            try {
+              await pool.query(
+                `INSERT INTO triples (subject, predicate, object, evidence_crouton_id)
+                 VALUES ($1, $2, $3, $4)
+                 ON CONFLICT (subject, predicate, object) DO NOTHING`,
+                [triple.subject, triple.predicate, triple.object, croutonId]
+              );
+              triplesCreated++;
+            } catch (e) {
+              console.warn("[ingest] Triple insert error:", e.message);
+            }
+          }
+        } catch (e) {
+          console.error("[ingest] Crouton insert error:", e.message);
+        }
+      }
+    }
+
+    res.json({
+      ok: true,
+      dataset_id: datasetId,
+      site: site,
+      schema_version: schemaVersion,
+      records_received: records.length,
+      records_inserted: inserted,
+      triples_created: triplesCreated,
+      timestamp: new Date().toISOString()
+    });
+  } catch (e) {
+    console.error("[ingest] Error:", e);
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
 app.use(express.json({ limit: "5mb" }));
 
 // ===== Health =====
@@ -223,143 +361,6 @@ app.get("/admin/ingestion/recent", async (req, res) => {
       now: new Date().toISOString(),
     });
   } catch (e) {
-    res.status(500).json({ ok: false, error: e.message });
-  }
-});
-
-// ===== Satellite Ingestion API (CLI) =====
-// POST /v1/streams/ingest
-// Accepts Bearer token auth, gzipped NDJSON from CLI
-app.post("/v1/streams/ingest", express.raw({ type: "application/x-ndjson", limit: "5mb" }), async (req, res) => {
-  try {
-    // Verify Bearer token (simple check - you can enhance this)
-    const authHeader = req.get("Authorization") || "";
-    const apiKey = authHeader.replace("Bearer ", "").trim();
-    if (!apiKey) {
-      return res.status(401).json({ ok: false, error: "Missing API key" });
-    }
-    // If API_KEYS env var is set, validate against it; otherwise allow any non-empty key
-    if (API_KEYS.length > 0 && !API_KEYS.includes(apiKey)) {
-      return res.status(401).json({ ok: false, error: "Invalid API key" });
-    }
-
-    // Get headers
-    const datasetId = req.get("X-Dataset-Id") || "default";
-    const site = req.get("X-Site") || "";
-    const contentHash = req.get("X-Content-Hash") || "";
-    const schemaVersion = req.get("X-Schema-Version") || "1";
-
-    // Handle gzip decompression
-    let body = req.body;
-    if (req.get("Content-Encoding") === "gzip") {
-      const zlib = require("zlib");
-      body = zlib.gunzipSync(body);
-    }
-    const ndjson = body.toString("utf8");
-
-    // Parse NDJSON lines
-    const lines = ndjson.split("\n").filter((line) => line.trim());
-    const records = [];
-    for (const line of lines) {
-      try {
-        records.push(JSON.parse(line));
-      } catch (e) {
-        console.warn("[ingest] Skipping invalid JSON line:", line.substring(0, 100));
-      }
-    }
-
-    if (records.length === 0) {
-      return res.status(400).json({ ok: false, error: "No valid records found" });
-    }
-
-    // Process records and insert into DB
-    let inserted = 0;
-    let triplesCreated = 0;
-
-    for (const record of records) {
-      const recordType = record["@type"] || "";
-      
-      // For now, only handle Factlet records (matching CLI format)
-      if (recordType === "Factlet") {
-        const factId = record.fact_id || record["@id"] || "";
-        const pageId = record.page_id || site;
-        const claim = record.claim || record.text || "";
-        const passageId = record.passage_id || "";
-
-        if (!factId || !claim) {
-          continue; // Skip invalid records
-        }
-
-        // Create crouton_id from fact_id
-        const croutonId = factId;
-
-        // Extract triple if available, otherwise create a simple one
-        let triple = null;
-        if (record.about || record.normalized?.about) {
-          const about = record.about || record.normalized?.about;
-          const aboutId = about["@id"] || about.id || String(about);
-          const aboutName = about.name || aboutId;
-          triple = {
-            subject: factId,
-            predicate: "about",
-            object: aboutId
-          };
-        } else if (record.provider) {
-          const provider = record.provider;
-          const providerId = provider["@id"] || provider.id || String(provider);
-          triple = {
-            subject: factId,
-            predicate: "providedBy",
-            object: providerId
-          };
-        }
-
-        // Insert crouton
-        try {
-          await pool.query(
-            `INSERT INTO croutons (crouton_id, source_url, text, corpus_id, triple, source_hash)
-             VALUES ($1, $2, $3, $4, $5, $6)
-             ON CONFLICT (crouton_id) DO UPDATE SET
-               source_url = EXCLUDED.source_url,
-               text = EXCLUDED.text,
-               triple = EXCLUDED.triple,
-               source_hash = EXCLUDED.source_hash`,
-            [croutonId, pageId, claim, datasetId, triple ? JSON.stringify(triple) : null, contentHash]
-          );
-          inserted++;
-
-          // Insert triple if available
-          if (triple) {
-            try {
-              await pool.query(
-                `INSERT INTO triples (subject, predicate, object, evidence_crouton_id)
-                 VALUES ($1, $2, $3, $4)
-                 ON CONFLICT (subject, predicate, object) DO NOTHING`,
-                [triple.subject, triple.predicate, triple.object, croutonId]
-              );
-              triplesCreated++;
-            } catch (e) {
-              console.warn("[ingest] Triple insert error:", e.message);
-            }
-          }
-        } catch (e) {
-          console.error("[ingest] Crouton insert error:", e.message);
-        }
-      }
-    }
-
-    res.json({
-      ok: true,
-      dataset_id: datasetId,
-      site: site,
-      schema_version: schemaVersion,
-      records_received: records.length,
-      records_inserted: inserted,
-      triples_created: triplesCreated,
-      timestamp: new Date().toISOString()
-    });
-  } catch (e) {
-    console.error("[ingest] Error:", e);
     res.status(500).json({ ok: false, error: e.message });
   }
 });
