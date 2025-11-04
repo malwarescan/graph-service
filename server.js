@@ -69,9 +69,10 @@ const ndjsonBody = express.text({ type: "*/*", limit: "5mb" });
 app.disable("x-powered-by");
 
 // ===== Satellite Ingestion API (CLI) - Must be before express.json() =====
-// POST /v1/streams/ingest
+// POST /api/ingest (changed from /v1/streams/ingest to avoid Railway routing)
 // Accepts Bearer token auth, gzipped NDJSON from CLI
-app.post("/v1/streams/ingest", express.raw({ type: "application/x-ndjson", limit: "5mb" }), async (req, res) => {
+app.post("/api/ingest", express.raw({ type: "application/x-ndjson", limit: "5mb" }), async (req, res) => {
+  console.log("[ingest] POST /api/ingest received");
   try {
     // Verify Bearer token (simple check - you can enhance this)
     const authHeader = req.get("Authorization") || "";
@@ -209,6 +210,10 @@ app.use(express.json({ limit: "5mb" }));
 
 // ===== Health =====
 app.get("/healthz", (_req, res) => res.send("ok"));
+
+// Test route for debugging
+app.get("/api/test", (_req, res) => res.json({ ok: true, message: "API routes working" }));
+app.get("/v1/test", (_req, res) => res.json({ ok: true, message: "v1 routes working" }));
 
 // ===== DB Diagnostics =====
 app.get("/diag/db", async (_req, res) => {
