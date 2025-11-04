@@ -93,11 +93,26 @@ app.post("/v1/streams/ingest", express.raw({ type: "application/x-ndjson", limit
 
     // Handle gzip decompression
     let body = req.body;
-    if (req.get("Content-Encoding") === "gzip") {
-      const zlib = require("zlib");
-      body = zlib.gunzipSync(body);
+    const contentEncoding = req.get("Content-Encoding") || "";
+    
+    console.log("[ingest] Content-Encoding:", contentEncoding, "Body type:", typeof body, "IsBuffer:", Buffer.isBuffer(body));
+    
+    if (contentEncoding === "gzip" && Buffer.isBuffer(body)) {
+      try {
+        const zlib = require("zlib");
+        body = zlib.gunzipSync(body);
+      } catch (e) {
+        console.error("[ingest] Gzip decompression error:", e.message);
+        // Try parsing as plain text if gzip fails
+        console.log("[ingest] Attempting to parse as plain text");
+        body = Buffer.isBuffer(body) ? body.toString("utf8") : String(body);
+      }
     }
-    const ndjson = body.toString("utf8");
+    
+    // Convert to string
+    const ndjson = Buffer.isBuffer(body) ? body.toString("utf8") : String(body);
+    
+    console.log("[ingest] Parsed NDJSON length:", ndjson.length, "First 100 chars:", ndjson.substring(0, 100));
 
     // Parse NDJSON lines
     const lines = ndjson.split("\n").filter((line) => line.trim());
