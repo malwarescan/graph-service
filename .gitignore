@@ -36,4 +36,4 @@ total:1
 
 # Do NOT commit generated vendor/compressed assets unless intended
 public/*.min.*
-EOF
+EOF.env
