@@ -132,6 +132,8 @@ app.post("/v1/streams/ingest", express.raw({ type: "application/x-ndjson", limit
     // Process records and insert into DB
     let inserted = 0;
     let triplesCreated = 0;
+    let skipped = 0;
+    let attempted = 0;
 
     for (const record of records) {
       const recordType = record["@type"] || "";
@@ -145,8 +147,11 @@ app.post("/v1/streams/ingest", express.raw({ type: "application/x-ndjson", limit
 
         if (!factId || !claim || !pageId) {
           console.warn(`[ingest] Skipping record: factId=${!!factId}, claim=${!!claim}, pageId=${!!pageId}`);
+          skipped++;
           continue; // Skip invalid records
         }
+        
+        attempted++;
 
         // Create crouton_id from fact_id
         const croutonId = factId;
@@ -223,32 +228,31 @@ app.post("/v1/streams/ingest", express.raw({ type: "application/x-ndjson", limit
             if (e.code) {
               console.error(`[ingest]   Error code: ${e.code}`);
             }
+            if (e.constraint) {
+              console.error(`[ingest]   Constraint: ${e.constraint}`);
+            }
           }
         }
 
-          // Insert triple if available
-          if (triple) {
-            try {
-              await pool.query(
-                `INSERT INTO triples (subject, predicate, object, evidence_crouton_id)
-                 VALUES ($1, $2, $3, $4)
-                 ON CONFLICT (subject, predicate, object) DO NOTHING`,
-                [triple.subject, triple.predicate, triple.object, croutonId]
-              );
-              triplesCreated++;
-            } catch (e) {
-              console.warn("[ingest] Triple insert error:", e.message);
-            }
-          }
-        } catch (e) {
-          console.error(`[ingest] Crouton insert error for ${croutonId}:`, e.message);
-          console.error(`[ingest]   pageId: ${pageId}, claim length: ${claim.length}, datasetId: ${datasetId}`);
-          if (e.code) {
-            console.error(`[ingest]   Error code: ${e.code}`);
+        // Insert triple if available
+        if (triple) {
+          try {
+            await pool.query(
+              `INSERT INTO triples (subject, predicate, object, evidence_crouton_id)
+               VALUES ($1, $2, $3, $4)
+               ON CONFLICT (subject, predicate, object) DO NOTHING`,
+              [triple.subject, triple.predicate, triple.object, croutonId]
+            );
+            triplesCreated++;
+          } catch (e) {
+            console.warn("[ingest] Triple insert error:", e.message);
           }
         }
       }
     }
+
+    // Log summary
+    console.log(`[ingest] Summary: received=${records.length}, attempted=${attempted}, skipped=${skipped}, inserted=${inserted}, triples=${triplesCreated}`);
 
     res.json({
       ok: true,
