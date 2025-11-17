@@ -1,4 +1,5 @@
 /* jshint node: true, esversion: 11 */
+// Force redeploy: source_hash fix + migration
 require("dotenv").config();
 
 const express = require("express");
