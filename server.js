@@ -139,11 +139,12 @@ app.post("/v1/streams/ingest", express.raw({ type: "application/x-ndjson", limit
       // For now, only handle Factlet records (matching CLI format)
       if (recordType === "Factlet") {
         const factId = record.fact_id || record["@id"] || "";
-        const pageId = record.page_id || site;
+        const pageId = record.page_id || site || "unknown";
         const claim = record.claim || record.text || "";
         const passageId = record.passage_id || "";
 
-        if (!factId || !claim) {
+        if (!factId || !claim || !pageId) {
+          console.warn(`[ingest] Skipping record: factId=${!!factId}, claim=${!!claim}, pageId=${!!pageId}`);
           continue; // Skip invalid records
         }
 
@@ -173,7 +174,7 @@ app.post("/v1/streams/ingest", express.raw({ type: "application/x-ndjson", limit
 
         // Insert crouton
         try {
-          await pool.query(
+          const result = await pool.query(
             `INSERT INTO croutons (crouton_id, source_url, text, corpus_id, triple, source_hash)
              VALUES ($1, $2, $3, $4, $5, $6)
              ON CONFLICT (crouton_id) DO UPDATE SET
@@ -184,6 +185,9 @@ app.post("/v1/streams/ingest", express.raw({ type: "application/x-ndjson", limit
             [croutonId, pageId, claim, datasetId, triple ? JSON.stringify(triple) : null, contentHash]
           );
           inserted++;
+          if (inserted % 100 === 0) {
+            console.log(`[ingest] Inserted ${inserted} croutons so far...`);
+          }
 
           // Insert triple if available
           if (triple) {
@@ -200,7 +204,11 @@ app.post("/v1/streams/ingest", express.raw({ type: "application/x-ndjson", limit
             }
           }
         } catch (e) {
-          console.error("[ingest] Crouton insert error:", e.message);
+          console.error(`[ingest] Crouton insert error for ${croutonId}:`, e.message);
+          console.error(`[ingest]   pageId: ${pageId}, claim length: ${claim.length}, datasetId: ${datasetId}`);
+          if (e.code) {
+            console.error(`[ingest]   Error code: ${e.code}`);
+          }
         }
       }
     }
