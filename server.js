@@ -187,20 +187,17 @@ app.post("/v1/streams/ingest", express.raw({ type: "application/x-ndjson", limit
         }
 
         // Insert crouton
-        // Use crouton_id as source_hash since it's already unique
-        // If source_hash conflict occurs, set it to NULL (unique constraint allows multiple NULLs)
-        const recordHash = croutonId; // crouton_id is already unique, so use it as source_hash
-        
+        // Use NULL for source_hash by default to avoid unique constraint conflicts
+        // crouton_id is already unique (primary key), so we don't need source_hash to be unique
         try {
           const result = await pool.query(
             `INSERT INTO croutons (crouton_id, source_url, text, corpus_id, triple, source_hash)
-             VALUES ($1, $2, $3, $4, $5, $6)
+             VALUES ($1, $2, $3, $4, $5, NULL)
              ON CONFLICT (crouton_id) DO UPDATE SET
                source_url = EXCLUDED.source_url,
                text = EXCLUDED.text,
-               triple = EXCLUDED.triple,
-               source_hash = EXCLUDED.source_hash`,
-            [croutonId, pageId, claim, datasetId, triple ? JSON.stringify(triple) : null, recordHash]
+               triple = EXCLUDED.triple`,
+            [croutonId, pageId, claim, datasetId, triple ? JSON.stringify(triple) : null]
           );
           // Check if query actually affected rows (rowCount > 0 means insert or update happened)
           if (result.rowCount > 0) {
@@ -215,46 +212,13 @@ app.post("/v1/streams/ingest", express.raw({ type: "application/x-ndjson", limit
             console.warn(`[ingest] Query returned 0 rowCount for ${croutonId} - no insert/update occurred`);
           }
         } catch (e) {
-          // If source_hash conflict, retry with NULL
-          // PostgreSQL error code 23505 = unique_violation
-          if (e.code === '23505' && (e.message && e.message.includes('source_hash'))) {
-            try {
-              const result = await pool.query(
-                `INSERT INTO croutons (crouton_id, source_url, text, corpus_id, triple, source_hash)
-                 VALUES ($1, $2, $3, $4, $5, NULL)
-                 ON CONFLICT (crouton_id) DO UPDATE SET
-                   source_url = EXCLUDED.source_url,
-                   text = EXCLUDED.text,
-                   triple = EXCLUDED.triple`,
-                [croutonId, pageId, claim, datasetId, triple ? JSON.stringify(triple) : null]
-              );
-              if (result.rowCount > 0) {
-                inserted++;
-                if (inserted % 100 === 0) {
-                  console.log(`[ingest] Inserted ${inserted} croutons so far...`);
-                }
-                if (inserted <= 5) {
-                  console.log(`[ingest] ✅ Inserted crouton ${inserted} (with NULL source_hash): ${croutonId.substring(0, 80)}`);
-                }
-              } else {
-                console.warn(`[ingest] Retry query returned 0 rowCount for ${croutonId}`);
-              }
-            } catch (e2) {
-              console.error(`[ingest] Crouton insert error for ${croutonId}:`, e2.message);
-              console.error(`[ingest]   pageId: ${pageId}, claim length: ${claim.length}, datasetId: ${datasetId}`);
-              if (e2.code) {
-                console.error(`[ingest]   Error code: ${e2.code}`);
-              }
-            }
-          } else {
-            console.error(`[ingest] Crouton insert error for ${croutonId}:`, e.message);
-            console.error(`[ingest]   pageId: ${pageId}, claim length: ${claim.length}, datasetId: ${datasetId}`);
-            if (e.code) {
-              console.error(`[ingest]   Error code: ${e.code}`);
-            }
-            if (e.constraint) {
-              console.error(`[ingest]   Constraint: ${e.constraint}`);
-            }
+          console.error(`[ingest] Crouton insert error for ${croutonId}:`, e.message);
+          console.error(`[ingest]   pageId: ${pageId}, claim length: ${claim.length}, datasetId: ${datasetId}`);
+          if (e.code) {
+            console.error(`[ingest]   Error code: ${e.code}`);
+          }
+          if (e.constraint) {
+            console.error(`[ingest]   Constraint: ${e.constraint}`);
           }
         }
 
