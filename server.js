@@ -173,11 +173,9 @@ app.post("/v1/streams/ingest", express.raw({ type: "application/x-ndjson", limit
         }
 
         // Insert crouton
-        // Hash each individual record for source_hash (not the batch hash)
-        // This prevents duplicate key violations when multiple records are in the same batch
-        const recordHash = crypto.createHash("sha256")
-          .update(JSON.stringify({ factId: croutonId, pageId, claim, datasetId }))
-          .digest("hex");
+        // Use crouton_id as source_hash since it's already unique
+        // This ensures each record has a unique source_hash and prevents duplicate key violations
+        const recordHash = croutonId; // crouton_id is already unique, so use it as source_hash
         
         try {
           const result = await pool.query(
