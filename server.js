@@ -147,8 +147,17 @@ app.post("/v1/streams/ingest", express.raw({ type: "application/x-ndjson", limit
 
         if (!factId || !claim || !pageId) {
           console.warn(`[ingest] Skipping record: factId=${!!factId}, claim=${!!claim}, pageId=${!!pageId}`);
+          console.warn(`[ingest]   factId="${factId}", claim="${claim.substring(0, 50)}", pageId="${pageId}"`);
           skipped++;
           continue; // Skip invalid records
+        }
+        
+        // Additional validation: claim must not be empty after trim
+        if (claim.trim().length === 0) {
+          console.warn(`[ingest] Skipping record: claim is empty after trim`);
+          console.warn(`[ingest]   factId="${factId}", pageId="${pageId}"`);
+          skipped++;
+          continue;
         }
         
         attempted++;
@@ -197,6 +206,9 @@ app.post("/v1/streams/ingest", express.raw({ type: "application/x-ndjson", limit
           if (inserted % 100 === 0) {
             console.log(`[ingest] Inserted ${inserted} croutons so far...`);
           }
+          if (inserted <= 5) {
+            console.log(`[ingest] ✅ Inserted crouton ${inserted}: ${croutonId.substring(0, 80)}`);
+          }
         } catch (e) {
           // If source_hash conflict, retry with NULL
           // PostgreSQL error code 23505 = unique_violation
@@ -214,6 +226,9 @@ app.post("/v1/streams/ingest", express.raw({ type: "application/x-ndjson", limit
               inserted++;
               if (inserted % 100 === 0) {
                 console.log(`[ingest] Inserted ${inserted} croutons so far...`);
+              }
+              if (inserted <= 5) {
+                console.log(`[ingest] ✅ Inserted crouton ${inserted} (with NULL source_hash): ${croutonId.substring(0, 80)}`);
               }
             } catch (e2) {
               console.error(`[ingest] Crouton insert error for ${croutonId}:`, e2.message);
