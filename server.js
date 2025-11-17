@@ -173,6 +173,12 @@ app.post("/v1/streams/ingest", express.raw({ type: "application/x-ndjson", limit
         }
 
         // Insert crouton
+        // Hash each individual record for source_hash (not the batch hash)
+        // This prevents duplicate key violations when multiple records are in the same batch
+        const recordHash = crypto.createHash("sha256")
+          .update(JSON.stringify({ factId: croutonId, pageId, claim, datasetId }))
+          .digest("hex");
+        
         try {
           const result = await pool.query(
             `INSERT INTO croutons (crouton_id, source_url, text, corpus_id, triple, source_hash)
@@ -182,7 +188,7 @@ app.post("/v1/streams/ingest", express.raw({ type: "application/x-ndjson", limit
                text = EXCLUDED.text,
                triple = EXCLUDED.triple,
                source_hash = EXCLUDED.source_hash`,
-            [croutonId, pageId, claim, datasetId, triple ? JSON.stringify(triple) : null, contentHash]
+            [croutonId, pageId, claim, datasetId, triple ? JSON.stringify(triple) : null, recordHash]
           );
           inserted++;
           if (inserted % 100 === 0) {
