@@ -174,7 +174,7 @@ app.post("/v1/streams/ingest", express.raw({ type: "application/x-ndjson", limit
 
         // Insert crouton
         // Use crouton_id as source_hash since it's already unique
-        // This ensures each record has a unique source_hash and prevents duplicate key violations
+        // If source_hash conflict occurs, set it to NULL (unique constraint allows multiple NULLs)
         const recordHash = croutonId; // crouton_id is already unique, so use it as source_hash
         
         try {
@@ -192,6 +192,39 @@ app.post("/v1/streams/ingest", express.raw({ type: "application/x-ndjson", limit
           if (inserted % 100 === 0) {
             console.log(`[ingest] Inserted ${inserted} croutons so far...`);
           }
+        } catch (e) {
+          // If source_hash conflict, retry with NULL
+          // PostgreSQL error code 23505 = unique_violation
+          if (e.code === '23505' && (e.message && e.message.includes('source_hash'))) {
+            try {
+              const result = await pool.query(
+                `INSERT INTO croutons (crouton_id, source_url, text, corpus_id, triple, source_hash)
+                 VALUES ($1, $2, $3, $4, $5, NULL)
+                 ON CONFLICT (crouton_id) DO UPDATE SET
+                   source_url = EXCLUDED.source_url,
+                   text = EXCLUDED.text,
+                   triple = EXCLUDED.triple`,
+                [croutonId, pageId, claim, datasetId, triple ? JSON.stringify(triple) : null]
+              );
+              inserted++;
+              if (inserted % 100 === 0) {
+                console.log(`[ingest] Inserted ${inserted} croutons so far...`);
+              }
+            } catch (e2) {
+              console.error(`[ingest] Crouton insert error for ${croutonId}:`, e2.message);
+              console.error(`[ingest]   pageId: ${pageId}, claim length: ${claim.length}, datasetId: ${datasetId}`);
+              if (e2.code) {
+                console.error(`[ingest]   Error code: ${e2.code}`);
+              }
+            }
+          } else {
+            console.error(`[ingest] Crouton insert error for ${croutonId}:`, e.message);
+            console.error(`[ingest]   pageId: ${pageId}, claim length: ${claim.length}, datasetId: ${datasetId}`);
+            if (e.code) {
+              console.error(`[ingest]   Error code: ${e.code}`);
+            }
+          }
+        }
 
           // Insert triple if available
           if (triple) {
