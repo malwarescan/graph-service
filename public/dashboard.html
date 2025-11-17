@@ -593,10 +593,10 @@
     searchTriples();
     loadRecent();
 
-    // Auto-refresh recent ingestion every 30 seconds
+    // Auto-refresh recent ingestion every 30 minutes
     setInterval(() => {
       loadRecent();
-    }, 30000);
+    }, 1800000);
 
     // Vue.js App for Graph View - Mount after DOM is ready
     const { createApp } = Vue;
@@ -624,7 +624,7 @@
             if (!this._pollTimer) {
               this._pollTimer = setInterval(() => {
                 if (this.tab === 'graph') this.loadGraph();
-              }, 10000);
+              }, 1800000);
             }
           } else {
             if (this._pollTimer) {

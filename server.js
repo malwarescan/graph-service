@@ -455,6 +455,108 @@ app.get("/api/facts", async (req, res) => {
   }
 });
 
+// GET /api/query - LLM-friendly semantic query endpoint
+app.get("/api/query", async (req, res) => {
+  try {
+    const query = String(req.query.q || req.query.query || "").trim();
+    const domain = req.query.domain || null;
+    const corpus = req.query.corpus || null;
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit || "20", 10)));
+    const format = req.query.format || "json"; // json or ndjson
+
+    if (!query && !domain && !corpus) {
+      return res.status(400).json({
+        ok: false,
+        error: "At least one of: q (query), domain, or corpus must be provided"
+      });
+    }
+
+    let sqlQuery = `
+      SELECT 
+        c.crouton_id AS fact_id,
+        c.source_url AS page_id,
+        c.text AS claim,
+        c.corpus_id,
+        c.triple,
+        c.confidence,
+        c.created_at
+      FROM croutons c
+      WHERE 1=1
+    `;
+    const params = [];
+    let paramIdx = 1;
+
+    // Text search (case-insensitive)
+    if (query) {
+      sqlQuery += ` AND c.text ILIKE $${paramIdx}`;
+      params.push(`%${query}%`);
+      paramIdx++;
+    }
+
+    // Domain filter (from corpus_id or source_url)
+    if (domain) {
+      sqlQuery += ` AND (c.corpus_id = $${paramIdx} OR c.source_url LIKE $${paramIdx + 1})`;
+      params.push(domain, `%${domain}%`);
+      paramIdx += 2;
+    }
+
+    // Corpus filter
+    if (corpus) {
+      sqlQuery += ` AND c.corpus_id = $${paramIdx}`;
+      params.push(corpus);
+      paramIdx++;
+    }
+
+    sqlQuery += ` ORDER BY c.confidence DESC NULLS LAST, c.created_at DESC LIMIT $${paramIdx}`;
+    params.push(limit);
+
+    const { rows } = await pool.query(sqlQuery, params);
+
+    // Get related triples for context
+    const factIds = rows.map(r => r.fact_id);
+    let triples = [];
+    if (factIds.length > 0) {
+      const tripleQuery = `
+        SELECT subject, predicate, object, evidence_crouton_id
+        FROM triples
+        WHERE evidence_crouton_id = ANY($1)
+        LIMIT 50
+      `;
+      const tripleResult = await pool.query(tripleQuery, [factIds]);
+      triples = tripleResult.rows;
+    }
+
+    const response = {
+      ok: true,
+      query: query || null,
+      domain: domain || null,
+      corpus: corpus || null,
+      results: rows.map(r => ({
+        fact_id: r.fact_id,
+        claim: r.claim,
+        source_url: r.page_id,
+        corpus_id: r.corpus_id,
+        confidence: r.confidence,
+        created_at: r.created_at,
+        triple: r.triple ? (typeof r.triple === 'string' ? JSON.parse(r.triple) : r.triple) : null
+      })),
+      triples: triples,
+      count: rows.length,
+      timestamp: new Date().toISOString()
+    };
+
+    if (format === "ndjson") {
+      res.setHeader("Content-Type", "application/x-ndjson");
+      res.send(rows.map(r => JSON.stringify(r)).join("\n") + "\n");
+    } else {
+      res.json(response);
+    }
+  } catch (e) {
+    console.error("[api/query] Error:", e);
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
 // GET /api/triples - Return subject-predicate-object triples
 app.get("/api/triples", async (req, res) => {
   try {
