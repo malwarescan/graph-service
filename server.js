@@ -1,5 +1,5 @@
 /* jshint node: true, esversion: 11 */
-// Force redeploy: source_hash fix + migration
+// Force redeploy: Added /api/query endpoint for LLM access
 require("dotenv").config();
 
 const express = require("express");
