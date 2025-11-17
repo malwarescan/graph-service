@@ -202,12 +202,17 @@ app.post("/v1/streams/ingest", express.raw({ type: "application/x-ndjson", limit
                source_hash = EXCLUDED.source_hash`,
             [croutonId, pageId, claim, datasetId, triple ? JSON.stringify(triple) : null, recordHash]
           );
-          inserted++;
-          if (inserted % 100 === 0) {
-            console.log(`[ingest] Inserted ${inserted} croutons so far...`);
-          }
-          if (inserted <= 5) {
-            console.log(`[ingest] ✅ Inserted crouton ${inserted}: ${croutonId.substring(0, 80)}`);
+          // Check if query actually affected rows (rowCount > 0 means insert or update happened)
+          if (result.rowCount > 0) {
+            inserted++;
+            if (inserted % 100 === 0) {
+              console.log(`[ingest] Inserted ${inserted} croutons so far...`);
+            }
+            if (inserted <= 5) {
+              console.log(`[ingest] ✅ Inserted crouton ${inserted}: ${croutonId.substring(0, 80)}`);
+            }
+          } else {
+            console.warn(`[ingest] Query returned 0 rowCount for ${croutonId} - no insert/update occurred`);
           }
         } catch (e) {
           // If source_hash conflict, retry with NULL
@@ -223,12 +228,16 @@ app.post("/v1/streams/ingest", express.raw({ type: "application/x-ndjson", limit
                    triple = EXCLUDED.triple`,
                 [croutonId, pageId, claim, datasetId, triple ? JSON.stringify(triple) : null]
               );
-              inserted++;
-              if (inserted % 100 === 0) {
-                console.log(`[ingest] Inserted ${inserted} croutons so far...`);
-              }
-              if (inserted <= 5) {
-                console.log(`[ingest] ✅ Inserted crouton ${inserted} (with NULL source_hash): ${croutonId.substring(0, 80)}`);
+              if (result.rowCount > 0) {
+                inserted++;
+                if (inserted % 100 === 0) {
+                  console.log(`[ingest] Inserted ${inserted} croutons so far...`);
+                }
+                if (inserted <= 5) {
+                  console.log(`[ingest] ✅ Inserted crouton ${inserted} (with NULL source_hash): ${croutonId.substring(0, 80)}`);
+                }
+              } else {
+                console.warn(`[ingest] Retry query returned 0 rowCount for ${croutonId}`);
               }
             } catch (e2) {
               console.error(`[ingest] Crouton insert error for ${croutonId}:`, e2.message);
