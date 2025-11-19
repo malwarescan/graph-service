@@ -32,7 +32,10 @@ function hmacHex(body) {
 
 function verifyHmacHeader(req, body) {
   const header = req.get("X-Signature") || req.get("x-signature") || "";
-  if (!header.startsWith("sha256=")) return false;
+  if (!header.startsWith("sha256=")) {
+    console.warn("[import] HMAC header missing or invalid format:", header.substring(0, 50));
+    return false;
+  }
   const gotHex = header.slice("sha256=".length);
   const exact = hmacHex(body);
   const alt = body.endsWith("\n") ? hmacHex(body.slice(0, -1)) : hmacHex(body + "\n");
@@ -40,11 +43,20 @@ function verifyHmacHeader(req, body) {
     const got = Buffer.from(gotHex, "hex");
     const exp = Buffer.from(exact, "hex");
     const altB = Buffer.from(alt, "hex");
-    return (
+    const matches = (
       (got.length === exp.length && crypto.timingSafeEqual(got, exp)) ||
       (got.length === altB.length && crypto.timingSafeEqual(got, altB))
     );
-  } catch {
+    if (!matches) {
+      console.warn("[import] HMAC signature mismatch");
+      console.warn(`[import]   Got: ${gotHex.substring(0, 16)}...`);
+      console.warn(`[import]   Expected (exact): ${exact.substring(0, 16)}...`);
+      console.warn(`[import]   Expected (alt): ${alt.substring(0, 16)}...`);
+      console.warn(`[import]   Body length: ${body.length}, ends with \\n: ${body.endsWith("\n")}`);
+    }
+    return matches;
+  } catch (e) {
+    console.warn("[import] HMAC verification error:", e.message);
     return false;
   }
 }
@@ -139,7 +151,34 @@ app.post("/v1/streams/ingest", express.raw({ type: "application/x-ndjson", limit
     for (const record of records) {
       const recordType = record["@type"] || "";
       
-      // For now, only handle Factlet records (matching CLI format)
+      // Handle Triple records
+      if (recordType === "Triple") {
+        const subject = record.subject || "";
+        const predicate = record.predicate || "";
+        const object = record.object || "";
+        const evidenceFactId = record.evidence_fact_id || record.evidence_crouton_id || null;
+
+        if (!subject || !predicate || !object) {
+          skipped++;
+          continue;
+        }
+
+        attempted++;
+        try {
+          await pool.query(
+            `INSERT INTO triples (subject, predicate, object, evidence_crouton_id)
+             VALUES ($1, $2, $3, $4)
+             ON CONFLICT (subject, predicate, object) DO NOTHING`,
+            [subject, predicate, object, evidenceFactId]
+          );
+          triplesCreated++;
+        } catch (e) {
+          console.warn("[ingest] Triple insert error:", e.message);
+        }
+        continue;
+      }
+      
+      // Handle Factlet records (matching CLI format)
       if (recordType === "Factlet") {
         const factId = record.fact_id || record["@id"] || "";
         const pageId = record.page_id || site || "unknown";
@@ -250,7 +289,9 @@ app.post("/v1/streams/ingest", express.raw({ type: "application/x-ndjson", limit
       schema_version: schemaVersion,
       records_received: records.length,
       records_inserted: inserted,
+      factlets_inserted: inserted, // Alias for compatibility
       triples_created: triplesCreated,
+      triples_inserted: triplesCreated, // Alias for compatibility
       timestamp: new Date().toISOString()
     });
   } catch (e) {
