@@ -28,12 +28,22 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Create trigger for source participation (will only work when table exists)
-DROP TRIGGER IF EXISTS notify_source_participation_trigger ON source_tracking.source_participation;
-CREATE TRIGGER notify_source_participation_trigger
-  AFTER INSERT OR UPDATE ON source_tracking.source_participation
-  FOR EACH ROW
-  EXECUTE FUNCTION source_tracking.notify_source_participation();
+-- Create trigger for source participation only if table exists
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.tables 
+        WHERE table_schema = 'source_tracking' 
+        AND table_name = 'source_participation'
+    ) THEN
+        DROP TRIGGER IF EXISTS notify_source_participation_trigger ON source_tracking.source_participation;
+        CREATE TRIGGER notify_source_participation_trigger
+        AFTER INSERT OR UPDATE ON source_tracking.source_participation
+        FOR EACH ROW
+        EXECUTE FUNCTION source_tracking.notify_source_participation();
+    END IF;
+END
+$$;
 
 -- Note: source_participation table will be created by main API migration
 -- This trigger will become active once both schemas are synced
