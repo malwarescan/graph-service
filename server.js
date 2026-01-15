@@ -973,6 +973,37 @@ app.get("/admin/ingestion/recent", async (req, res) => {
   }
 });
 
+// GET /api/source-stats - Derived dataset for AI-readable sources
+app.get("/api/source-stats", async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT 
+         source_domain as domain,
+         COUNT(*) as crouton_count,
+         BOOL_OR(ai_readable_source) as markdown,
+         ARRAY_AGG(DISTINCT discovery_method) as discovery_methods,
+         MAX(last_verified) as last_seen
+       FROM source_tracking.source_participation
+       GROUP BY source_domain
+       ORDER BY crouton_count DESC`,
+      []
+    );
+    
+    const data = rows.map(row => ({
+      domain: row.domain,
+      crouton_count: parseInt(row.crouton_count),
+      markdown: row.markdown,
+      discovery_methods: row.discovery_methods,
+      last_seen: row.last_seen
+    }));
+    
+    res.json({ ok: true, data });
+  } catch (e) {
+    console.error("[source-stats] Error:", e);
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
 // ===== Static Files =====
 app.use(
   express.static(path.join(__dirname, "public"), {

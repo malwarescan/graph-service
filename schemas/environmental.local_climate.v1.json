@@ -1,0 +1,164 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://croutons.ai/schemas/environmental.local_climate/v1",
+  "title": "Environmental Local Climate Schema",
+  "description": "Schema for local environmental and climate data ingestion from NOAA and other sources",
+  "version": "1.0.0",
+  "type": "object",
+  "required": ["date", "source"],
+  "properties": {
+    "temp_max": {
+      "type": "number",
+      "description": "Maximum temperature in Fahrenheit",
+      "minimum": -100,
+      "maximum": 150
+    },
+    "temp_min": {
+      "type": "number",
+      "description": "Minimum temperature in Fahrenheit",
+      "minimum": -100,
+      "maximum": 150
+    },
+    "dew_point": {
+      "type": "number",
+      "description": "Dew point temperature in Fahrenheit",
+      "minimum": -100,
+      "maximum": 100
+    },
+    "precipitation": {
+      "type": "number",
+      "description": "Precipitation amount in inches",
+      "minimum": 0
+    },
+    "humidity_index": {
+      "type": "number",
+      "description": "Relative humidity percentage or calculated humidity index",
+      "minimum": 0,
+      "maximum": 100
+    },
+    "wind_speed": {
+      "type": "number",
+      "description": "Wind speed in miles per hour",
+      "minimum": 0
+    },
+    "storm_event": {
+      "type": "string",
+      "description": "Type of storm event if applicable",
+      "enum": [
+        "none",
+        "thunderstorm",
+        "tornado",
+        "hurricane",
+        "tropical_storm",
+        "hail",
+        "flood",
+        "flash_flood",
+        "winter_storm",
+        "ice_storm",
+        "high_wind",
+        "other"
+      ]
+    },
+    "storm_intensity": {
+      "type": "string",
+      "description": "Intensity classification of storm event",
+      "enum": ["none", "minor", "moderate", "severe", "extreme"]
+    },
+    "uv_proxy": {
+      "type": "string",
+      "description": "UV index proxy or classification",
+      "enum": ["low", "moderate", "high", "very_high", "extreme", "unknown"]
+    },
+    "seasonality_vector": {
+      "type": "object",
+      "description": "Seasonal pattern indicators and metadata",
+      "properties": {
+        "season": {
+          "type": "string",
+          "enum": ["winter", "spring", "summer", "fall"]
+        },
+        "month": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 12
+        },
+        "day_of_year": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 366
+        },
+        "climate_zone": {
+          "type": "string",
+          "description": "Köppen climate classification or similar"
+        }
+      }
+    },
+    "date": {
+      "type": "string",
+      "format": "date",
+      "description": "Date of observation in ISO 8601 format (YYYY-MM-DD)"
+    },
+    "zip": {
+      "type": "string",
+      "pattern": "^[0-9]{5}(-[0-9]{4})?$",
+      "description": "ZIP code for location"
+    },
+    "lat": {
+      "type": "number",
+      "description": "Latitude in decimal degrees",
+      "minimum": -90,
+      "maximum": 90
+    },
+    "lon": {
+      "type": "number",
+      "description": "Longitude in decimal degrees",
+      "minimum": -180,
+      "maximum": 180
+    },
+    "county": {
+      "type": "string",
+      "description": "County name or FIPS code"
+    },
+    "source": {
+      "type": "string",
+      "description": "Data source identifier",
+      "enum": ["GHCND", "LCD", "StormEvents", "Normals", "other"]
+    },
+    "station_id": {
+      "type": "string",
+      "description": "Weather station identifier from source system"
+    },
+    "data_quality": {
+      "type": "string",
+      "description": "Quality flag for the observation",
+      "enum": ["verified", "unverified", "estimated", "suspect"]
+    }
+  },
+  "examples": [
+    {
+      "temp_max": 85.2,
+      "temp_min": 68.5,
+      "dew_point": 72.1,
+      "precipitation": 0.25,
+      "humidity_index": 78,
+      "wind_speed": 12.5,
+      "storm_event": "thunderstorm",
+      "storm_intensity": "moderate",
+      "uv_proxy": "high",
+      "seasonality_vector": {
+        "season": "summer",
+        "month": 7,
+        "day_of_year": 195,
+        "climate_zone": "Cfa"
+      },
+      "date": "2024-07-14",
+      "zip": "33301",
+      "lat": 26.1224,
+      "lon": -80.1373,
+      "county": "Broward",
+      "source": "GHCND",
+      "station_id": "GHCND:USW00012839",
+      "data_quality": "verified"
+    }
+  ]
+}

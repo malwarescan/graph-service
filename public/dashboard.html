@@ -152,6 +152,12 @@
             class="font-mono text-sm uppercase tracking-wider touch-manipulation py-2">
             Graph View
           </button>
+          <button 
+            @click="tab='sources'" 
+            :class="tab==='sources' ? 'font-bold text-[#00C2FF] border-b-2 border-[#00C2FF] pb-2 -mb-[2px] px-4' : 'text-[#6B6B6B] hover:text-[#0A0A0A] px-4 transition-colors duration-200'"
+            class="font-mono text-sm uppercase tracking-wider touch-manipulation py-2">
+            AI-Readable Sources
+          </button>
     </div>
 
         <!-- Search Tab -->
@@ -380,6 +386,72 @@
               </div>
       </div>
           </aside>
+        </div>
+
+        <!-- AI-Readable Sources Tab -->
+        <div v-if="tab==='sources'">
+          <div class="border-2 border-[#0A0A0A] p-4 md:p-8">
+            <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4 md:mb-6">
+              <h2 class="text-xl md:text-2xl font-bold text-[#0A0A0A">AI-Readable Sources</h2>
+              <div class="flex gap-2">
+                <button @click="loadSourceStats" :disabled="sources.loading" class="w-full sm:w-auto px-6 py-3 md:py-2 bg-[#0A0A0A] text-white font-medium hover:bg-[#00C2FF] transition-colors duration-200 rounded-lg cursor-pointer disabled:bg-[#6B6B6B] disabled:opacity-60 disabled:cursor-not-allowed touch-manipulation">
+                  {{ sources.loading ? 'Loading...' : 'Refresh' }}
+                </button>
+              </div>
+            </div>
+            <div class="text-xs md:text-sm text-[#6B6B6B] mb-4 md:mb-6">
+              Observed AI participation across source domains. Shows which sites expose Markdown content and how it was discovered.
+            </div>
+            
+            <div class="overflow-x-auto border-2 border-[#0A0A0A] rounded-lg -mx-2 md:mx-0">
+              <div class="inline-block min-w-full">
+                <table class="w-full border-collapse text-xs sm:text-sm min-w-[600px]">
+                  <thead>
+                    <tr>
+                      <th class="border-b-2 border-[#0A0A0A] p-3 text-left font-bold text-[#0A0A0A] sticky top-0 bg-white">Domain</th>
+                      <th class="border-b-2 border-[#0A0A0A] p-3 text-left font-bold text-[#0A0A0A] sticky top-0 bg-white">Markdown Exposed</th>
+                      <th class="border-b-2 border-[#0A0A0A] p-3 text-left font-bold text-[#0A0A0A] sticky top-0 bg-white">Discovery Method(s)</th>
+                      <th class="border-b-2 border-[#0A0A0A] p-3 text-left font-bold text-[#0A0A0A] sticky top-0 bg-white">Crouton Count</th>
+                      <th class="border-b-2 border-[#0A0A0A] p-3 text-left font-bold text-[#0A0A0A] sticky top-0 bg-white">Last Observed</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-if="sources.loading">
+                      <td colspan="5" class="text-[#6B6B6B] p-3 text-center">Loading source statistics...</td>
+                    </tr>
+                    <tr v-else-if="!sources.data || sources.data.length === 0">
+                      <td colspan="5" class="text-[#6B6B6B] p-3 text-center">No source data available yet</td>
+                    </tr>
+                    <tr v-else v-for="source in sources.data" :key="source.domain">
+                      <td class="border-b border-[#0A0A0A]/20 p-3 font-mono text-[#0A0A0A]">{{ source.domain }}</td>
+                      <td class="border-b border-[#0A0A0A]/20 p-3">
+                        <span :class="source.markdown ? 'text-[#25D366]' : 'text-[#6B6B6B]'" class="font-mono">
+                          {{ source.markdown ? 'YES' : 'NO' }}
+                        </span>
+                      </td>
+                      <td class="border-b border-[#0A0A0A]/20 p-3">
+                        <div class="flex flex-wrap gap-1">
+                          <span v-for="method in source.discovery_methods" :key="method" class="px-2 py-1 text-xs rounded-full bg-[#F8F8F8] border border-[#0A0A0A] font-mono">
+                            {{ method }}
+                          </span>
+                        </div>
+                      </td>
+                      <td class="border-b border-[#0A0A0A]/20 p-3 font-mono text-[#0A0A0A]">{{ source.crouton_count }}</td>
+                      <td class="border-b border-[#0A0A0A]/20 p-3 font-mono text-[#6B6B6B]">{{ formatDate(source.last_seen) }}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            
+            <div v-if="sources.error" class="mt-4 text-[#EF4444] text-xs md:text-sm font-mono">
+              Error: {{ sources.error }}
+            </div>
+            
+            <div v-if="sources.data && sources.data.length > 0" class="text-xs md:text-sm text-[#6B6B6B] font-mono mt-4">
+              Showing {{ sources.data.length }} source domains. Updated: {{ formatDate(sources.lastUpdated) }}
+            </div>
+          </div>
         </div>
 
         <footer class="text-sm text-[#6B6B6B] font-mono text-center mt-8">
@@ -614,6 +686,12 @@
             neighborMap: {},
             selected: null,
             triples: []
+          },
+          sources: {
+            loading: false,
+            error: null,
+            data: [],
+            lastUpdated: null
           }
         }
       },
@@ -626,6 +704,8 @@
                 if (this.tab === 'graph') this.loadGraph();
               }, 1800000);
             }
+          } else if (newTab === 'sources') {
+            this.loadSourceStats();
           } else {
             if (this._pollTimer) {
               clearInterval(this._pollTimer);
@@ -796,6 +876,35 @@
           this.clearSelection();
           this.graph.loaded = false;
           this.loadGraph();
+        },
+        async loadSourceStats() {
+          this.sources.loading = true;
+          this.sources.error = null;
+          try {
+            const response = await fetch('/api/source-stats?nocache=1', { 
+              cache: 'no-store',
+              headers: { 'Accept': 'application/json' }
+            });
+            if (!response.ok) throw new Error('HTTP ' + response.status);
+            const payload = await response.json();
+            this.sources.data = payload?.data || [];
+            this.sources.lastUpdated = new Date().toISOString();
+          } catch (error) {
+            console.error('[sources] Error loading stats:', error);
+            this.sources.error = error.message;
+            this.sources.data = [];
+          } finally {
+            this.sources.loading = false;
+          }
+        },
+        formatDate(dateString) {
+          if (!dateString) return 'Never';
+          try {
+            const date = new Date(dateString);
+            return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          } catch {
+            return dateString;
+          }
         }
       },
       mounted() {

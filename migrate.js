@@ -1,26 +1,14 @@
 /* jshint node: true, esversion: 11 */
 
-const fs   = require("fs");
+const fs = require("fs");
 const path = require("path");
-const { Client } = require("pg");
+const { pool } = require("./db");
 
-async function run() {
-  const DATABASE_URL = process.env.DATABASE_URL;
-  if (!DATABASE_URL) {
-    console.error("Missing DATABASE_URL");
-    process.exit(1);
-  }
+(async () => {
+  console.log("[migrate] running migrations...");
 
-  // Railway internal Postgres typically does not require SSL in-container.
-  // If you ever switch to a public connection string that requires SSL,
-  // flip ssl: { rejectUnauthorized: false } on.
-  const client = new Client({
-    connectionString: DATABASE_URL,
-    ssl: false
-  });
-
-  await client.connect();
-
+  const client = await pool.connect();
+  try {
   // Ensure migrations table exists
   await client.query(`
     CREATE TABLE IF NOT EXISTS schema_migrations (
@@ -36,7 +24,7 @@ async function run() {
   const migrationsDir = path.join(__dirname, "migrations");
   const files = fs.readdirSync(migrationsDir)
     .filter(f => f.endsWith(".sql"))
-    .sort(); // lexicographic order
+    .sort();
 
   let appliedCount = 0;
   for (const fname of files) {
@@ -53,20 +41,21 @@ async function run() {
         [fname]
       );
       await client.query("COMMIT");
-      console.log(`Applied ${fname}`);
+      console.log(`✅ Applied ${fname}`);
       appliedCount++;
     } catch (e) {
       await client.query("ROLLBACK");
-      console.error(`Failed ${fname}:`, e.message);
+      console.error(`❌ Failed ${fname}:`, e.message);
       throw e;
     }
   }
 
-  await client.end();
   console.log(appliedCount > 0 ? `Migrations applied: ${appliedCount}` : "No new migrations.");
+  } finally {
+    client.release();
+    await pool.end();
 }
-
-run().catch(err => {
+})().catch(err => {
   console.error(err);
   process.exit(1);
 });
