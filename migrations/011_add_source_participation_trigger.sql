@@ -1,6 +1,10 @@
 -- migrations/011_add_source_participation_trigger.sql
--- Add trigger for source participation events to outbox
+-- Add source tracking schema and trigger for outbox events
 
+-- Create source_tracking schema if it doesn't exist
+CREATE SCHEMA IF NOT EXISTS source_tracking;
+
+-- Create trigger for source participation events to outbox
 CREATE OR REPLACE FUNCTION source_tracking.notify_source_participation()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -24,13 +28,12 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Create trigger for source participation
+-- Create trigger for source participation (will only work when table exists)
 DROP TRIGGER IF EXISTS notify_source_participation_trigger ON source_tracking.source_participation;
 CREATE TRIGGER notify_source_participation_trigger
   AFTER INSERT OR UPDATE ON source_tracking.source_participation
   FOR EACH ROW
   EXECUTE FUNCTION source_tracking.notify_source_participation();
 
--- Add index for performance
-CREATE INDEX IF NOT EXISTS source_participation_outbox_idx 
-  ON source_tracking.source_participation(ai_readable_source, markdown_discovered);
+-- Note: source_participation table will be created by main API migration
+-- This trigger will become active once both schemas are synced
